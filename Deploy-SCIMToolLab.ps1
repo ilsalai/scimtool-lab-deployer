@@ -1,4 +1,4 @@
-# SCIMTool Lab - One-Click Deployment v0.5
+# SCIMTool Lab - One-Click Deployment v0.6
 # Based on github.com/kayasax/SCIMTool
 # Author: Silvestre Gaitan - Nebula Mexico - April 2026
 #
@@ -77,6 +77,45 @@ function Parse-Log {
     return $result
 }
 
+function Invoke-AzLogin {
+    param([switch]$DeviceCode)
+    if ($DeviceCode) {
+        Write-Host ""
+        Write-Host "   .------------------------------------------------------." -ForegroundColor Yellow
+        Write-Host "   | DEVICE CODE LOGIN                                    |" -ForegroundColor Yellow
+        Write-Host "   |                                                      |" -ForegroundColor Yellow
+        Write-Host "   | 1. A short code will appear below.                   |" -ForegroundColor Yellow
+        Write-Host "   | 2. Open in any browser, even on your phone:          |" -ForegroundColor Yellow
+        Write-Host "   |      https://microsoft.com/devicelogin               |" -ForegroundColor Yellow
+        Write-Host "   | 3. Enter the code, then sign in.                     |" -ForegroundColor Yellow
+        Write-Host "   | 4. Come back to this window when done.               |" -ForegroundColor Yellow
+        Write-Host "   '------------------------------------------------------'" -ForegroundColor Yellow
+        Write-Host ""
+        az login --use-device-code
+    } else {
+        az login
+    }
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Get-AzSubscriptionList {
+    $out = az account list --all --output json 2>$null
+    if (-not $out) { return }
+    try {
+        return ($out | ConvertFrom-Json)
+    } catch {
+        return
+    }
+}
+
+function Get-SubTenantLabel {
+    param($Sub)
+    if ($Sub.PSObject.Properties.Name -contains "tenantDisplayName" -and $Sub.tenantDisplayName) {
+        return $Sub.tenantDisplayName
+    }
+    return $Sub.tenantId
+}
+
 trap {
     Write-Host ""
     Write-FAIL "AN ERROR OCCURRED"
@@ -92,7 +131,7 @@ trap {
 Clear-Host
 Write-Host ""
 Write-Host "  ==========================================================" -ForegroundColor Cyan
-Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.5             " -ForegroundColor Cyan
+Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.6             " -ForegroundColor Cyan
 Write-Host "  ==========================================================" -ForegroundColor Cyan
 Write-Host "   A personal SCIM 2.0 provisioning lab in Azure.            " -ForegroundColor Gray
 Write-Host "   Based on: github.com/kayasax/SCIMTool                     " -ForegroundColor Gray
@@ -100,15 +139,15 @@ Write-Host "  ==========================================================" -Foreg
 Write-Host ""
 Write-Host "  This script will:" -ForegroundColor White
 Write-Host "   1. Check Azure CLI is installed" -ForegroundColor Gray
-Write-Host "   2. Log you into Azure" -ForegroundColor Gray
-Write-Host "   3. Validate your subscription" -ForegroundColor Gray
+Write-Host "   2. Log you into Azure (browser or device code)" -ForegroundColor Gray
+Write-Host "   3. Pick which subscription to deploy into" -ForegroundColor Gray
 Write-Host "   4. Deploy the SCIMTool container - about 10 min" -ForegroundColor Gray
 Write-Host "   5. Read deployment details" -ForegroundColor Gray
 Write-Host "   6. Fix network for public access" -ForegroundColor Gray
 Write-Host "   7. Verify the endpoint is reachable" -ForegroundColor Gray
 Write-Host "   8. Save credentials to your Desktop" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  You interact at steps 2 and 4. The rest is automatic." -ForegroundColor Yellow
+Write-Host "  You interact at steps 2-4. The rest is automatic." -ForegroundColor Yellow
 Pause-Script "Press Enter to begin..."
 
 # ===========================================================
@@ -157,17 +196,44 @@ Start-Sleep -Seconds 1
 #  STEP 2
 # ===========================================================
 
-Write-Step 2 "AZURE LOGIN" "Browser will open -- sign in with your Microsoft account"
+Write-Step 2 "AZURE LOGIN" "Browser sign-in with device-code fallback"
 
 Write-NOTE "After signing in, come back to this window."
 Pause-Script "Press Enter to open login page..."
 
 Write-BUSY "Opening browser for login..."
-az login
-if ($LASTEXITCODE -ne 0) {
-    Write-FAIL "Login failed."
-    Pause-Script "Press Enter to exit..."
-    exit 1
+$loginOk = Invoke-AzLogin
+
+$subs = @()
+if ($loginOk) { $subs = @(Get-AzSubscriptionList) }
+
+if (-not $loginOk -or $subs.Count -eq 0) {
+    Write-Host ""
+    if (-not $loginOk) {
+        Write-WARN "Standard browser login did not complete."
+    } else {
+        Write-WARN "Signed in, but no subscriptions were returned."
+    }
+    Write-Host ""
+    Write-Host "   Device-code login often helps when:" -ForegroundColor Yellow
+    Write-Host "     - Conditional Access is blocking the embedded browser" -ForegroundColor Yellow
+    Write-Host "     - You need to sign into a different tenant" -ForegroundColor Yellow
+    Write-Host "     - MFA is not completing in the standard flow" -ForegroundColor Yellow
+    Write-Host ""
+    $ans = Read-Host "   Retry with device code? [Y/n]"
+    if ($ans -eq "" -or $ans -match '^[Yy]') {
+        $loginOk = Invoke-AzLogin -DeviceCode
+        if (-not $loginOk) {
+            Write-FAIL "Device-code login failed."
+            Pause-Script "Press Enter to exit..."
+            exit 1
+        }
+        $subs = @(Get-AzSubscriptionList)
+    } elseif (-not $loginOk) {
+        Write-FAIL "Login did not complete and device-code retry was declined."
+        Pause-Script "Press Enter to exit..."
+        exit 1
+    }
 }
 
 Write-OK "Login successful."
@@ -177,32 +243,104 @@ Start-Sleep -Seconds 1
 #  STEP 3
 # ===========================================================
 
-Write-Step 3 "VALIDATING SUBSCRIPTION" "Checking subscription is active"
+Write-Step 3 "SELECTING SUBSCRIPTION" "Enumerating tenants and picking a target"
 
-Write-BUSY "Reading subscription info..."
-$acct = az account show 2>$null | ConvertFrom-Json
+Write-BUSY "Enumerating subscriptions across all tenants..."
+if ($subs.Count -eq 0) { $subs = @(Get-AzSubscriptionList) }
 
-if (-not $acct) {
-    Write-FAIL "Could not read subscription."
+if ($subs.Count -eq 0) {
+    Write-FAIL "Your account has no Azure subscriptions."
+    Write-Host ""
+    Write-Host "   This deployer needs at least one Enabled subscription." -ForegroundColor Yellow
+    Write-Host "   Options:" -ForegroundColor Yellow
+    Write-Host "     - Activate a Visual Studio / MSDN subscription" -ForegroundColor Yellow
+    Write-Host "     - Request access to a lab subscription from your manager" -ForegroundColor Yellow
+    Write-Host "     - Sign in again with an account that has a subscription" -ForegroundColor Yellow
     Pause-Script "Press Enter to exit..."
     exit 1
 }
 
-$subName = $acct.name
-$subId = $acct.id
-$subState = $acct.state
+$foundMsg = "Found {0} subscription(s) across all tenants." -f $subs.Count
+Write-OK $foundMsg
+
+$enabledSubs = @($subs | Where-Object { $_.state -eq "Enabled" })
+
+if ($enabledSubs.Count -eq 0) {
+    $failMsg = "None of the {0} subscription(s) are Enabled." -f $subs.Count
+    Write-FAIL $failMsg
+    Write-Host ""
+    Write-Host "   Current state:" -ForegroundColor Yellow
+    $n = 1
+    foreach ($s in $subs) {
+        $tenantLabel = Get-SubTenantLabel $s
+        $line = "      {0}. {1}  [{2}]  tenant: {3}" -f $n, $s.name, $s.state, $tenantLabel
+        Write-Host $line -ForegroundColor White
+        $n = $n + 1
+    }
+    Write-Host ""
+    Write-Host "   Reactivate one in the Azure portal, or sign in with a" -ForegroundColor Yellow
+    Write-Host "   different account that has an Enabled subscription." -ForegroundColor Yellow
+    Pause-Script "Press Enter to exit..."
+    exit 1
+}
+
+$chosen = $null
+
+if ($enabledSubs.Count -eq 1) {
+    $chosen = $enabledSubs[0]
+    Write-OK "Exactly one Enabled subscription -- auto-selecting."
+} else {
+    $availMsg = "{0} Enabled subscriptions available." -f $enabledSubs.Count
+    Write-OK $availMsg
+    Write-Host ""
+    Write-Host "   Pick one to deploy into:" -ForegroundColor Cyan
+    Write-Host ""
+    $n = 1
+    foreach ($s in $enabledSubs) {
+        $tenantLabel = Get-SubTenantLabel $s
+        $line1 = "      {0}. {1}" -f $n, $s.name
+        $line2 = "         state:  {0}" -f $s.state
+        $line3 = "         tenant: {0}" -f $tenantLabel
+        Write-Host $line1 -ForegroundColor White
+        Write-Host $line2 -ForegroundColor Gray
+        Write-Host $line3 -ForegroundColor Gray
+        Write-Host ""
+        $n = $n + 1
+    }
+
+    $pick = 0
+    while ($pick -lt 1 -or $pick -gt $enabledSubs.Count) {
+        $promptText = "   Enter a number [1-{0}]" -f $enabledSubs.Count
+        $raw = Read-Host $promptText
+        $parsed = 0
+        if ([int]::TryParse($raw, [ref]$parsed)) {
+            $pick = $parsed
+        }
+        if ($pick -lt 1 -or $pick -gt $enabledSubs.Count) {
+            $warnMsg = "Please enter a number between 1 and {0}." -f $enabledSubs.Count
+            Write-WARN $warnMsg
+        }
+    }
+    $chosen = $enabledSubs[$pick - 1]
+}
+
+Write-BUSY "Setting active subscription..."
+az account set --subscription $chosen.id --output none 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-FAIL "Could not switch to the selected subscription."
+    Pause-Script "Press Enter to exit..."
+    exit 1
+}
+
+$subName = $chosen.name
+$subId = $chosen.id
+$subState = $chosen.state
 
 Write-Host ""
 Write-Host "   Subscription:  $subName" -ForegroundColor White
 Write-Host "   ID:            $subId" -ForegroundColor White
 Write-Host "   State:         $subState" -ForegroundColor White
 Write-Host ""
-
-if ($subState -ne "Enabled") {
-    Write-FAIL "Subscription is $subState -- it must be Enabled."
-    Pause-Script "Press Enter to exit..."
-    exit 1
-}
 
 Write-OK "Subscription is active."
 Start-Sleep -Seconds 1

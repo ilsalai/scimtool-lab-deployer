@@ -4,9 +4,24 @@ All notable changes to the SCIMTool Lab Deployer are recorded here.
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions are pre-1.0 while the deployer stabilizes — expect each iteration to land breaking changes.
 
-## [0.5] — 2026-04-23
+## [0.6] — 2026-04-23
 
-Current release. First iteration that completes end-to-end on a clean subscription without manual intervention.
+Current release. Hardens the Azure sign-in flow for corporate tenants with Conditional Access and for engineers whose accounts span multiple tenants.
+
+### Added
+- **Device-code login fallback.** When standard `az login` fails, or succeeds but returns zero subscriptions, the script offers a retry with `az login --use-device-code` and prints instructions pointing at `https://microsoft.com/devicelogin`. Useful when Conditional Access blocks the embedded browser, the system browser is broken, or MFA isn't completing in the standard flow.
+- **Multi-tenant subscription picker.** After login the script enumerates every subscription the account can see across all tenants via `az account list --all`. One Enabled subscription auto-selects; multiple Enabled subscriptions are shown as a numbered list (name, state, tenant) with a prompt; the selection is locked in with `az account set` before deployment.
+
+### Changed
+- **Step 3 repurposed** from "validate the default subscription" to "pick a subscription." The old flow silently used whatever `az account show` returned, which was wrong for any engineer whose CSS tenant was the default but whose lab subscription lived elsewhere.
+- **Banner and interaction hint** updated to reflect the new step 3 and that interaction may now happen at steps 2–4.
+
+### Fixed
+- **Zero-subscription and all-disabled accounts** now exit with a clear explanation and suggested next steps, instead of failing a hundred lines later inside the bootstrap with a cryptic Azure CLI error.
+
+## [0.5] — 2026-04-22
+
+First iteration that completes end-to-end on a clean subscription without manual intervention.
 
 ### Added
 - **Automatic subnet delegation fix.** Detects `SubnetDelegationError` in the upstream bootstrap transcript, delegates the `aca-infra` subnet to `Microsoft.App/environments`, and re-runs the bootstrap. The retry reuses the existing resources and completes cleanly.

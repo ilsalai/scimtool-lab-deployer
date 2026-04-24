@@ -1,6 +1,6 @@
 # SCIMTool Lab Deployer
 
-> **Status:** v0.5 — pre-release. First iteration that completes end-to-end on a clean subscription without manual intervention. See [CHANGELOG.md](CHANGELOG.md) for the iteration history.
+> **Status:** v0.6 — pre-release. Adds device-code login fallback and a multi-tenant subscription picker on top of v0.5's first end-to-end-clean deploy. See [CHANGELOG.md](CHANGELOG.md) for the iteration history.
 
 A one-click PowerShell deployer that stands up a personal [SCIMTool](https://github.com/kayasax/SCIMTool) instance in Azure — a SCIM 2.0 provisioning inspector you can point Entra ID at to watch exactly what it sends on the wire.
 
