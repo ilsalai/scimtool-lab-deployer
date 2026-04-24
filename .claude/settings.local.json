@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pwsh -Command '& { $null = [System.Management.Automation.PSParser]::Tokenize\\(\\(Get-Content .\\\\Deploy-SCIMToolLab.ps1 -Raw\\), [ref]$null\\) }')"
+    ]
+  }
+}

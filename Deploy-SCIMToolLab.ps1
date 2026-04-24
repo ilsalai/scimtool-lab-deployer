@@ -1,8 +1,8 @@
-# SCIMTool Lab - One-Click Deployment v5
+# SCIMTool Lab - One-Click Deployment v0.5
 # Based on github.com/kayasax/SCIMTool
 # Author: Silvestre Gaitan - Nebula Mexico - April 2026
 #
-# RUN: Set-ExecutionPolicy Bypass -Scope Process -Force; & "$env:USERPROFILE\Downloads\SCIMTool-Deploy-v5.ps1"
+# RUN: Set-ExecutionPolicy Bypass -Scope Process -Force; & "$env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1"
 
 try { Set-ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue } catch { }
 
@@ -92,7 +92,7 @@ trap {
 Clear-Host
 Write-Host ""
 Write-Host "  ==========================================================" -ForegroundColor Cyan
-Write-Host "      SCIMTool Lab -- One-Click Deployment  v5               " -ForegroundColor Cyan
+Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.5             " -ForegroundColor Cyan
 Write-Host "  ==========================================================" -ForegroundColor Cyan
 Write-Host "   A personal SCIM 2.0 provisioning lab in Azure.            " -ForegroundColor Gray
 Write-Host "   Based on: github.com/kayasax/SCIMTool                     " -ForegroundColor Gray
