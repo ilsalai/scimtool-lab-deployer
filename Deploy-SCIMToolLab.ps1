@@ -523,9 +523,9 @@ try {
     Write-Host "   | BOOTSTRAP WILL ASK YOU ~6 QUESTIONS.                  |" -ForegroundColor Yellow
     Write-Host "   |                                                       |" -ForegroundColor Yellow
     Write-Host "   | Pre-configured names (use THESE if asked):            |" -ForegroundColor Yellow
-    Write-Host ("   |   RG:       " + $rg.PadRight(38)       + "  |") -ForegroundColor Yellow
-    Write-Host ("   |   App:      " + $app.PadRight(38)      + "  |") -ForegroundColor Yellow
-    Write-Host ("   |   Location: " + $loc.PadRight(38)      + "  |") -ForegroundColor Yellow
+    Write-Host ("   |   RG:       " + $rg.PadRight(40)       + "  |") -ForegroundColor Yellow
+    Write-Host ("   |   App:      " + $app.PadRight(40)      + "  |") -ForegroundColor Yellow
+    Write-Host ("   |   Location: " + $loc.PadRight(40)      + "  |") -ForegroundColor Yellow
     Write-Host "   |                                                       |" -ForegroundColor Yellow
     Write-Host "   | If the bootstrap offers these as defaults, just       |" -ForegroundColor Yellow
     Write-Host "   | press Enter. If a different default is shown, TYPE    |" -ForegroundColor Yellow
@@ -542,11 +542,19 @@ try {
     Write-Host ""
 
     try { Start-Transcript -Path $logFile -Force | Out-Null } catch { }
+    # Save bootstrap to temp .ps1 and invoke as a script. Avoids the PS7 optimizer
+    # error "Cannot overwrite variable Branch" that hits when Invoke-Expression
+    # compiles the script's nested param() blocks as a single scriptblock.
+    # UTF-8 BOM so PS 5.1 doesn't misread non-ASCII chars as Windows-1252.
+    $bootstrapPath = Join-Path $env:TEMP ("scimtool-bootstrap-" + $ts + ".ps1")
     try {
         $bootstrapScript = (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/kayasax/SCIMTool/master/bootstrap.ps1" -UseBasicParsing).Content
-        Invoke-Expression $bootstrapScript
+        [System.IO.File]::WriteAllText($bootstrapPath, $bootstrapScript, [System.Text.UTF8Encoding]::new($true))
+        & $bootstrapPath
     } catch {
         Write-FAIL "Bootstrap error: $($_.Exception.Message)"
+    } finally {
+        if (Test-Path $bootstrapPath) { Remove-Item $bootstrapPath -Force -ErrorAction SilentlyContinue }
     }
     try { Stop-Transcript | Out-Null } catch { }
 
@@ -564,11 +572,15 @@ try {
         az network vnet subnet update --resource-group $fixRG --vnet-name $fixVnet --name aca-infra --delegations Microsoft.App/environments --output none 2>$null
 
         try { Start-Transcript -Path $logFile2 -Force | Out-Null } catch { }
+        $bootstrapPath2 = Join-Path $env:TEMP ("scimtool-bootstrap-retry-" + $ts + ".ps1")
         try {
             $bootstrapScript2 = (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/kayasax/SCIMTool/master/bootstrap.ps1" -UseBasicParsing).Content
-            Invoke-Expression $bootstrapScript2
+            [System.IO.File]::WriteAllText($bootstrapPath2, $bootstrapScript2, [System.Text.UTF8Encoding]::new($true))
+            & $bootstrapPath2
         } catch {
             Write-FAIL "Bootstrap retry error: $($_.Exception.Message)"
+        } finally {
+            if (Test-Path $bootstrapPath2) { Remove-Item $bootstrapPath2 -Force -ErrorAction SilentlyContinue }
         }
         try { Stop-Transcript | Out-Null } catch { }
 
