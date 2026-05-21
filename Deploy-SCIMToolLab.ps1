@@ -1,8 +1,14 @@
-# SCIMTool Lab - One-Click Deployment v0.5
+# SCIMTool Lab - One-Click Deployment v0.8.2
 # Based on github.com/kayasax/SCIMTool
 # Author: Silvestre Gaitan - Nebula Mexico - April 2026
 #
 # RUN: Set-ExecutionPolicy Bypass -Scope Process -Force; & "$env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1"
+
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+    chcp 65001 | Out-Null
+} catch { }
 
 try { Set-ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue } catch { }
 
@@ -12,20 +18,48 @@ $ts = Get-Date -Format "yyyyMMdd-HHmmss"
 $credFile = Join-Path $desktopPath "SCIMTool-Credentials-$ts.txt"
 $logFile = Join-Path $env:TEMP "scimtool-log-$ts.txt"
 $logFile2 = Join-Path $env:TEMP "scimtool-log2-$ts.txt"
-$totalSteps = 8
+$totalSteps = 7
+
+# --- Unicode glyphs, assembled at runtime so this file stays pure ASCII ---
+$gH  = [string][char]0x2550  # horizontal double
+$gTL = [string][char]0x2554  # top-left double
+$gTR = [string][char]0x2557  # top-right double
+$gBL = [string][char]0x255A  # bottom-left double
+$gBR = [string][char]0x255D  # bottom-right double
+$gML = [string][char]0x2560  # middle-left double
+$gMR = [string][char]0x2563  # middle-right double
+$lH  = [string][char]0x2500  # horizontal light
+$lTL = [string][char]0x250C  # top-left light
+$lTR = [string][char]0x2510  # top-right light
+$lBL = [string][char]0x2514  # bottom-left light
+$lBR = [string][char]0x2518  # bottom-right light
+$branch    = [string][char]0x251C + [string][char]0x2500  # tree branch
+$branchEnd = [string][char]0x2514 + [string][char]0x2500  # tree end
+$blockOn   = [string][char]0x2588  # progress filled
+$blockOff  = [string][char]0x2591  # progress empty
+$spinnerFrames = @(
+    [string][char]0x280B, [string][char]0x2819, [string][char]0x2839, [string][char]0x2838, [string][char]0x283C,
+    [string][char]0x2834, [string][char]0x2826, [string][char]0x2827, [string][char]0x2807, [string][char]0x280F
+)
+
+$boxWidth = 66
+
+# --- Visual helpers ---
 
 function Write-Step {
     param([int]$Num, [string]$Title, [string]$Desc)
     $pct = [math]::Round(($Num / $totalSteps) * 100)
     $filled = [math]::Round(30 * $Num / $totalSteps)
     $empty = 30 - $filled
-    $bar = ("#" * $filled) + ("-" * $empty)
+    $bar = ($blockOn * $filled) + ($blockOff * $empty)
+    $top = "  " + $lTL + ($lH * ($boxWidth - 2)) + $lTR
+    $bot = "  " + $lBL + ($lH * ($boxWidth - 2)) + $lBR
     Write-Host ""
-    Write-Host "  ----------------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "   STEP $Num of $totalSteps  [$bar]  $pct%" -ForegroundColor White
-    Write-Host "   $Title" -ForegroundColor Cyan
-    if ($Desc) { Write-Host "   $Desc" -ForegroundColor Gray }
-    Write-Host "  ----------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host $top -ForegroundColor DarkGray
+    Write-Host ("   STEP " + $Num + " of " + $totalSteps + "  [" + $bar + "]  " + $pct + "%") -ForegroundColor White
+    Write-Host ("   " + $Title) -ForegroundColor Cyan
+    if ($Desc) { Write-Host ("   " + $Desc) -ForegroundColor Gray }
+    Write-Host $bot -ForegroundColor DarkGray
     Write-Host ""
 }
 
@@ -34,6 +68,12 @@ function Write-WARN { param([string]$M) Write-Host "   [WARN] $M" -ForegroundCol
 function Write-FAIL { param([string]$M) Write-Host "   [FAIL] $M" -ForegroundColor Red }
 function Write-NOTE { param([string]$M) Write-Host "   [INFO] $M" -ForegroundColor Gray }
 function Write-BUSY { param([string]$M) Write-Host "   [....] $M" -ForegroundColor DarkYellow }
+
+function Write-SubOK   { param([string]$M, [switch]$Last) $c = if ($Last) { $branchEnd } else { $branch }; Write-Host ("   " + $c + " [OK]   " + $M) -ForegroundColor Green }
+function Write-SubWARN { param([string]$M, [switch]$Last) $c = if ($Last) { $branchEnd } else { $branch }; Write-Host ("   " + $c + " [WARN] " + $M) -ForegroundColor Yellow }
+function Write-SubFAIL { param([string]$M, [switch]$Last) $c = if ($Last) { $branchEnd } else { $branch }; Write-Host ("   " + $c + " [FAIL] " + $M) -ForegroundColor Red }
+function Write-SubINFO { param([string]$M, [switch]$Last) $c = if ($Last) { $branchEnd } else { $branch }; Write-Host ("   " + $c + " [INFO] " + $M) -ForegroundColor Gray }
+function Write-SubBUSY { param([string]$M, [switch]$Last) $c = if ($Last) { $branchEnd } else { $branch }; Write-Host ("   " + $c + " [....] " + $M) -ForegroundColor DarkYellow }
 
 function Wait-Seconds {
     param([int]$Sec, [string]$Msg)
@@ -77,6 +117,86 @@ function Parse-Log {
     return $result
 }
 
+function Show-Spinner {
+    param(
+        [Parameter(Mandatory)][scriptblock]$ScriptBlock,
+        [Parameter(Mandatory)][string]$Message,
+        [object[]]$ArgumentList = @()
+    )
+    $job = Start-Job -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList
+    $i = 0
+    while ($job.State -eq 'Running') {
+        $frame = $spinnerFrames[$i % $spinnerFrames.Count]
+        $line = "`r   " + $frame + " " + $Message + "   "
+        Write-Host $line -NoNewline -ForegroundColor DarkYellow
+        Start-Sleep -Milliseconds 120
+        $i = $i + 1
+    }
+    $output = Receive-Job -Job $job -ErrorAction SilentlyContinue
+    $succeeded = ($job.State -eq 'Completed')
+    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    $clear = "`r" + (" " * 80) + "`r"
+    Write-Host $clear -NoNewline
+    return [pscustomobject]@{ Success = $succeeded; Output = $output }
+}
+
+function Invoke-AzLogin {
+    param([switch]$DeviceCode)
+    if ($DeviceCode) {
+        Write-Host ""
+        Write-Host "   .------------------------------------------------------." -ForegroundColor Yellow
+        Write-Host "   | DEVICE CODE LOGIN                                    |" -ForegroundColor Yellow
+        Write-Host "   |                                                      |" -ForegroundColor Yellow
+        Write-Host "   | 1. A short code will appear below.                   |" -ForegroundColor Yellow
+        Write-Host "   | 2. Open in any browser, even on your phone:          |" -ForegroundColor Yellow
+        Write-Host "   |      https://microsoft.com/devicelogin               |" -ForegroundColor Yellow
+        Write-Host "   | 3. Enter the code, then sign in.                     |" -ForegroundColor Yellow
+        Write-Host "   | 4. Come back to this window when done.               |" -ForegroundColor Yellow
+        Write-Host "   '------------------------------------------------------'" -ForegroundColor Yellow
+        Write-Host ""
+        az login --use-device-code
+    } else {
+        az login
+    }
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Get-AzSubscriptionList {
+    $out = az account list --all --output json 2>$null
+    if (-not $out) { return }
+    try {
+        return ($out | ConvertFrom-Json)
+    } catch {
+        return
+    }
+}
+
+function Get-SubTenantLabel {
+    param($Sub)
+    if ($Sub.PSObject.Properties.Name -contains "tenantDisplayName" -and $Sub.tenantDisplayName) {
+        return $Sub.tenantDisplayName
+    }
+    return $Sub.tenantId
+}
+
+function Test-AppName {
+    param([string]$Name)
+    if ($Name.Length -lt 3 -or $Name.Length -gt 30) { return $false }
+    return ($Name -match '^[a-z][a-z0-9-]{1,28}[a-z0-9]$')
+}
+
+function Remove-DeployedResources {
+    param([string]$ResourceGroup)
+    if (-not $ResourceGroup) { return }
+    Write-BUSY ("Deleting resource group " + $ResourceGroup + "...")
+    az group delete --name $ResourceGroup --yes --no-wait --output none 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-OK "Cleanup initiated -- runs in background."
+    } else {
+        Write-WARN "Cleanup could not be started. Delete the RG manually in the portal."
+    }
+}
+
 trap {
     Write-Host ""
     Write-FAIL "AN ERROR OCCURRED"
@@ -90,29 +210,31 @@ trap {
 # ===========================================================
 
 Clear-Host
+$bTop = "  " + $gTL + ($gH * ($boxWidth - 2)) + $gTR
+$bMid = "  " + $gML + ($gH * ($boxWidth - 2)) + $gMR
+$bBot = "  " + $gBL + ($gH * ($boxWidth - 2)) + $gBR
 Write-Host ""
-Write-Host "  ==========================================================" -ForegroundColor Cyan
-Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.5             " -ForegroundColor Cyan
-Write-Host "  ==========================================================" -ForegroundColor Cyan
-Write-Host "   A personal SCIM 2.0 provisioning lab in Azure.            " -ForegroundColor Gray
-Write-Host "   Based on: github.com/kayasax/SCIMTool                     " -ForegroundColor Gray
-Write-Host "  ==========================================================" -ForegroundColor Cyan
+Write-Host $bTop -ForegroundColor Cyan
+Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.8.2" -ForegroundColor Cyan
+Write-Host $bMid -ForegroundColor Cyan
+Write-Host "      A personal SCIM 2.0 provisioning lab in Azure." -ForegroundColor Gray
+Write-Host "      Based on: github.com/kayasax/SCIMTool" -ForegroundColor Gray
+Write-Host $bBot -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  This script will:" -ForegroundColor White
 Write-Host "   1. Check Azure CLI is installed" -ForegroundColor Gray
-Write-Host "   2. Log you into Azure" -ForegroundColor Gray
-Write-Host "   3. Validate your subscription" -ForegroundColor Gray
-Write-Host "   4. Deploy the SCIMTool container - about 10 min" -ForegroundColor Gray
+Write-Host "   2. Log you into Azure (browser or device code)" -ForegroundColor Gray
+Write-Host "   3. Pick which subscription to deploy into" -ForegroundColor Gray
+Write-Host "   4. Pre-create infra then run the bootstrap -- about 10 min" -ForegroundColor Gray
 Write-Host "   5. Read deployment details" -ForegroundColor Gray
-Write-Host "   6. Fix network for public access" -ForegroundColor Gray
-Write-Host "   7. Verify the endpoint is reachable" -ForegroundColor Gray
-Write-Host "   8. Save credentials to your Desktop" -ForegroundColor Gray
+Write-Host "   6. Verify the endpoint is reachable" -ForegroundColor Gray
+Write-Host "   7. Save credentials to your Desktop" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  You interact at steps 2 and 4. The rest is automatic." -ForegroundColor Yellow
+Write-Host "  You interact at steps 2-4. The rest is automatic." -ForegroundColor Yellow
 Pause-Script "Press Enter to begin..."
 
 # ===========================================================
-#  STEP 1
+#  STEP 1: PREREQUISITES
 # ===========================================================
 
 Write-Step 1 "CHECKING PREREQUISITES" "Azure CLI, PowerShell, internet"
@@ -154,43 +276,148 @@ Write-OK "All prerequisites passed."
 Start-Sleep -Seconds 1
 
 # ===========================================================
-#  STEP 2
+#  STEP 2: AZURE LOGIN (with device-code fallback)
 # ===========================================================
 
-Write-Step 2 "AZURE LOGIN" "Browser will open -- sign in with your Microsoft account"
+Write-Step 2 "AZURE LOGIN" "Browser sign-in with device-code fallback"
 
 Write-NOTE "After signing in, come back to this window."
 Pause-Script "Press Enter to open login page..."
 
 Write-BUSY "Opening browser for login..."
-az login
-if ($LASTEXITCODE -ne 0) {
-    Write-FAIL "Login failed."
-    Pause-Script "Press Enter to exit..."
-    exit 1
+$loginOk = Invoke-AzLogin
+
+$subs = @()
+if ($loginOk) { $subs = @(Get-AzSubscriptionList) }
+
+if (-not $loginOk -or $subs.Count -eq 0) {
+    Write-Host ""
+    if (-not $loginOk) {
+        Write-WARN "Standard browser login did not complete."
+    } else {
+        Write-WARN "Signed in, but no subscriptions were returned."
+    }
+    Write-Host ""
+    Write-Host "   Device-code login often helps when:" -ForegroundColor Yellow
+    Write-Host "     - Conditional Access is blocking the embedded browser" -ForegroundColor Yellow
+    Write-Host "     - You need to sign into a different tenant" -ForegroundColor Yellow
+    Write-Host "     - MFA is not completing in the standard flow" -ForegroundColor Yellow
+    Write-Host ""
+    $ans = Read-Host "   Retry with device code? [Y/n]"
+    if ($ans -eq "" -or $ans -match '^[Yy]') {
+        $loginOk = Invoke-AzLogin -DeviceCode
+        if (-not $loginOk) {
+            Write-FAIL "Device-code login failed."
+            Pause-Script "Press Enter to exit..."
+            exit 1
+        }
+        $subs = @(Get-AzSubscriptionList)
+    } elseif (-not $loginOk) {
+        Write-FAIL "Login did not complete and device-code retry was declined."
+        Pause-Script "Press Enter to exit..."
+        exit 1
+    }
 }
 
 Write-OK "Login successful."
 Start-Sleep -Seconds 1
 
 # ===========================================================
-#  STEP 3
+#  STEP 3: SELECT SUBSCRIPTION
 # ===========================================================
 
-Write-Step 3 "VALIDATING SUBSCRIPTION" "Checking subscription is active"
+Write-Step 3 "SELECTING SUBSCRIPTION" "Enumerating tenants and picking a target"
 
-Write-BUSY "Reading subscription info..."
-$acct = az account show 2>$null | ConvertFrom-Json
+Write-BUSY "Enumerating subscriptions across all tenants..."
+if ($subs.Count -eq 0) { $subs = @(Get-AzSubscriptionList) }
 
-if (-not $acct) {
-    Write-FAIL "Could not read subscription."
+if ($subs.Count -eq 0) {
+    Write-FAIL "Your account has no Azure subscriptions."
+    Write-Host ""
+    Write-Host "   This deployer needs at least one Enabled subscription." -ForegroundColor Yellow
+    Write-Host "   Options:" -ForegroundColor Yellow
+    Write-Host "     - Activate a Visual Studio / MSDN subscription" -ForegroundColor Yellow
+    Write-Host "     - Request access to a lab subscription from your manager" -ForegroundColor Yellow
+    Write-Host "     - Sign in again with an account that has a subscription" -ForegroundColor Yellow
     Pause-Script "Press Enter to exit..."
     exit 1
 }
 
-$subName = $acct.name
-$subId = $acct.id
-$subState = $acct.state
+$foundMsg = "Found {0} subscription(s) across all tenants." -f $subs.Count
+Write-OK $foundMsg
+
+$enabledSubs = @($subs | Where-Object { $_.state -eq "Enabled" })
+
+if ($enabledSubs.Count -eq 0) {
+    $failMsg = "None of the {0} subscription(s) are Enabled." -f $subs.Count
+    Write-FAIL $failMsg
+    Write-Host ""
+    Write-Host "   Current state:" -ForegroundColor Yellow
+    $n = 1
+    foreach ($s in $subs) {
+        $tenantLabel = Get-SubTenantLabel $s
+        $line = "      {0}. {1}  [{2}]  tenant: {3}" -f $n, $s.name, $s.state, $tenantLabel
+        Write-Host $line -ForegroundColor White
+        $n = $n + 1
+    }
+    Write-Host ""
+    Write-Host "   Reactivate one in the Azure portal, or sign in with a" -ForegroundColor Yellow
+    Write-Host "   different account that has an Enabled subscription." -ForegroundColor Yellow
+    Pause-Script "Press Enter to exit..."
+    exit 1
+}
+
+$chosen = $null
+
+if ($enabledSubs.Count -eq 1) {
+    $chosen = $enabledSubs[0]
+    Write-OK "Exactly one Enabled subscription -- auto-selecting."
+} else {
+    $availMsg = "{0} Enabled subscriptions available." -f $enabledSubs.Count
+    Write-OK $availMsg
+    Write-Host ""
+    Write-Host "   Pick one to deploy into:" -ForegroundColor Cyan
+    Write-Host ""
+    $n = 1
+    foreach ($s in $enabledSubs) {
+        $tenantLabel = Get-SubTenantLabel $s
+        $line1 = "      {0}. {1}" -f $n, $s.name
+        $line2 = "         state:  {0}" -f $s.state
+        $line3 = "         tenant: {0}" -f $tenantLabel
+        Write-Host $line1 -ForegroundColor White
+        Write-Host $line2 -ForegroundColor Gray
+        Write-Host $line3 -ForegroundColor Gray
+        Write-Host ""
+        $n = $n + 1
+    }
+
+    $pick = 0
+    while ($pick -lt 1 -or $pick -gt $enabledSubs.Count) {
+        $promptText = "   Enter a number [1-{0}]" -f $enabledSubs.Count
+        $raw = Read-Host $promptText
+        $parsed = 0
+        if ([int]::TryParse($raw, [ref]$parsed)) {
+            $pick = $parsed
+        }
+        if ($pick -lt 1 -or $pick -gt $enabledSubs.Count) {
+            $warnMsg = "Please enter a number between 1 and {0}." -f $enabledSubs.Count
+            Write-WARN $warnMsg
+        }
+    }
+    $chosen = $enabledSubs[$pick - 1]
+}
+
+Write-BUSY "Setting active subscription..."
+az account set --subscription $chosen.id --output none 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-FAIL "Could not switch to the selected subscription."
+    Pause-Script "Press Enter to exit..."
+    exit 1
+}
+
+$subName = $chosen.name
+$subId = $chosen.id
+$subState = $chosen.state
 
 Write-Host ""
 Write-Host "   Subscription:  $subName" -ForegroundColor White
@@ -198,147 +425,263 @@ Write-Host "   ID:            $subId" -ForegroundColor White
 Write-Host "   State:         $subState" -ForegroundColor White
 Write-Host ""
 
-if ($subState -ne "Enabled") {
-    Write-FAIL "Subscription is $subState -- it must be Enabled."
-    Pause-Script "Press Enter to exit..."
-    exit 1
-}
-
 Write-OK "Subscription is active."
 Start-Sleep -Seconds 1
 
 # ===========================================================
-#  STEP 4: DEPLOY (with auto-retry for subnet delegation)
+#  STEP 4: PRE-CREATE INFRA + BOOTSTRAP + NSG
 # ===========================================================
 
-Write-Step 4 "DEPLOYING SCIMTOOL" "Main deployment -- about 5-10 minutes"
+Write-Step 4 "DEPLOYING SCIMTOOL" "Pre-create infra, run bootstrap, apply NSG rule"
 
-Write-Host "   .------------------------------------------------------." -ForegroundColor Yellow
-Write-Host "   | THE SCRIPT WILL ASK YOU QUESTIONS:                    |" -ForegroundColor Yellow
-Write-Host "   |                                                      |" -ForegroundColor Yellow
-Write-Host "   |  Change subscription?  ->  N                         |" -ForegroundColor Yellow
-Write-Host "   |  Resource Group        ->  Press Enter for default   |" -ForegroundColor Yellow
-Write-Host "   |  App Name              ->  Press Enter for default   |" -ForegroundColor Yellow
-Write-Host "   |  Location              ->  Press Enter for default   |" -ForegroundColor Yellow
-Write-Host "   |  Secrets (3 prompts)   ->  Press Enter to generate   |" -ForegroundColor Yellow
-Write-Host "   |                                                      |" -ForegroundColor Yellow
-Write-Host "   |  IMPORTANT: Just press Enter on everything.          |" -ForegroundColor Yellow
-Write-Host "   |  Do NOT type custom names.                           |" -ForegroundColor Yellow
-Write-Host "   |                                                      |" -ForegroundColor Yellow
-Write-Host "   |  Then WAIT about 10 min. DO NOT close this window.   |" -ForegroundColor Yellow
-Write-Host "   '------------------------------------------------------'" -ForegroundColor Yellow
-
-Pause-Script "Press Enter to start deployment..."
+# Generate names at the start of Step 4
+$rg = "scimtool-rg-" + (Get-Random -Minimum 1000 -Maximum 9999)
+$app = "scimtool-app-" + (Get-Random -Minimum 1000 -Maximum 9999)
+$loc = "eastus"
 
 Write-Host ""
-Write-Host "  ===== BOOTSTRAP OUTPUT START =============================" -ForegroundColor Magenta
+Write-Host "   Pre-generated names:" -ForegroundColor Cyan
+Write-Host ("     Resource Group: " + $rg) -ForegroundColor White
+Write-Host ("     App Name:       " + $app) -ForegroundColor White
+Write-Host ("     Location:       " + $loc) -ForegroundColor White
+Write-Host ""
+Write-Host "   [1] Use defaults (recommended)" -ForegroundColor Gray
+Write-Host "   [2] Customize App name (RG stays default)" -ForegroundColor Gray
 Write-Host ""
 
-try { Start-Transcript -Path $logFile -Force | Out-Null } catch { }
-
-try {
-    $bootstrapScript = (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/kayasax/SCIMTool/master/bootstrap.ps1" -UseBasicParsing).Content
-    Invoke-Expression $bootstrapScript
-} catch {
-    Write-FAIL "Bootstrap error: $($_.Exception.Message)"
+$choice = ""
+while ($choice -ne "1" -and $choice -ne "2") {
+    $choice = Read-Host "   Enter 1 or 2 (default: 1)"
+    if ($choice -eq "") { $choice = "1" }
 }
 
-try { Stop-Transcript | Out-Null } catch { }
+if ($choice -eq "2") {
+    $valid = $false
+    while (-not $valid) {
+        $customApp = Read-Host "   App name (lowercase + numbers + hyphens; 3-30 chars; start with letter)"
+        if (Test-AppName $customApp) {
+            $app = $customApp
+            $valid = $true
+        } else {
+            Write-WARN "Invalid. Use lowercase letters, numbers, hyphens. Start with letter, end alphanumeric, 3-30 chars."
+        }
+    }
+}
 
 Write-Host ""
-Write-Host "  ===== BOOTSTRAP OUTPUT END ===============================" -ForegroundColor Magenta
-Write-Host ""
+Write-OK ("Final names: RG=" + $rg + "  App=" + $app + "  Loc=" + $loc)
 
-# --- Check for subnet delegation error ---
-$parsed = Parse-Log $logFile
+# Pre-configure the upstream bootstrap via env vars (verified against
+# kayasax/SCIMTool@master). UNATTENDED=1 is what actually skips the prompts;
+# the others seed the values it would otherwise generate randomly.
+$env:SCIMTOOL_RG         = $rg
+$env:SCIMTOOL_APP        = $app
+$env:SCIMTOOL_LOCATION   = $loc
+$env:SCIMTOOL_UNATTENDED = '1'
 
-if ($parsed.HasSubnetError) {
+$step4Failed = $false
+$step4FailMsg = ""
+$parsed = @{}
+$vnet = $app + "-vnet"
+
+try {
+    # --- 4a: Pre-create Resource Group ---
     Write-Host ""
-    Write-Host "  ==========================================================" -ForegroundColor Yellow
-    Write-Host "   DETECTED: Subnet Delegation Error" -ForegroundColor Yellow
-    Write-Host "   This is a known issue. Fixing automatically..." -ForegroundColor Yellow
-    Write-Host "  ==========================================================" -ForegroundColor Yellow
+    Write-NOTE "4a. Creating Resource Group..."
+    az group create --name $rg --location $loc --output none 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "Could not create resource group $rg." }
+    Write-SubOK ("RG created: " + $rg) -Last
+
+    # --- 4b: Pre-create VNet with pre-delegated aca-infra + private-endpoints subnets ---
     Write-Host ""
+    Write-NOTE "4b. Creating VNet with pre-delegated aca-infra subnet..."
 
-    # Get RG and App Name from the log
-    $fixRG = $parsed.RG
-    $fixApp = $parsed.AppName
-
-    if (-not $fixRG) {
-        $fixRG = Read-Host "   Type the Resource Group name from the output above"
+    $vnetResult = Show-Spinner -Message ("Creating VNet " + $vnet + " (10.0.0.0/16)...") -ArgumentList $rg, $vnet -ScriptBlock {
+        param($rgArg, $vnetArg)
+        az network vnet create --resource-group $rgArg --name $vnetArg --address-prefix 10.0.0.0/16 --subnet-name aca-infra --subnet-prefix 10.0.0.0/23 --output none
+        $LASTEXITCODE
     }
-    if (-not $fixApp) {
-        $fixApp = Read-Host "   Type the App Name from the output above"
-    }
+    if (-not $vnetResult.Success -or $vnetResult.Output -ne 0) { throw "VNet creation failed (exit code $($vnetResult.Output))." }
+    Write-SubOK ("VNet created: " + $vnet + " (10.0.0.0/16)")
+    Write-SubOK "Subnet aca-infra created (10.0.0.0/23)"
 
-    $fixVnet = $fixApp + "-vnet"
+    Write-SubBUSY "Delegating aca-infra to Microsoft.App/environments..."
+    az network vnet subnet update --resource-group $rg --vnet-name $vnet --name aca-infra --delegations Microsoft.App/environments --output none 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "Subnet delegation failed." }
+    Write-SubOK "aca-infra delegated to Microsoft.App/environments"
 
-    Write-BUSY "Delegating subnet to Microsoft.App/environments..."
-    az network vnet subnet update --resource-group $fixRG --vnet-name $fixVnet --name aca-infra --delegations Microsoft.App/environments --output none 2>$null
+    Write-SubBUSY "Creating private-endpoints subnet..."
+    az network vnet subnet create --resource-group $rg --vnet-name $vnet --name private-endpoints --address-prefixes 10.0.2.0/24 --output none 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "private-endpoints subnet creation failed." }
+    Write-SubOK "private-endpoints subnet created (10.0.2.0/24)"
 
-    if ($LASTEXITCODE -eq 0) {
-        Write-OK "Subnet delegated successfully."
-    } else {
-        Write-FAIL "Could not delegate subnet."
-        Write-Host "   Try manually:" -ForegroundColor Yellow
-        $manualFix = "az network vnet subnet update --resource-group " + $fixRG + " --vnet-name " + $fixVnet + " --name aca-infra --delegations Microsoft.App/environments"
-        Write-Host "   $manualFix" -ForegroundColor White
-        Pause-Script "Press Enter after running the command manually, or to exit..."
-    }
+    # aca-runtime: workload subnet for the Container App Environment in Workload
+    # Profiles mode. Upstream Bicep (kayasax/SCIMTool infra/networking.bicep)
+    # declares this with policies Disabled and default CIDR 10.40.8.0/21 (which
+    # does NOT fit our 10.0.0.0/16 VNet) -- we place it at 10.0.8.0/21 instead.
+    # When this subnet is missing, the upstream bootstrap logs "Failed to create
+    # subnet aca-runtime" and proceeds without it, leaving the container Unhealthy.
+    Write-SubBUSY "Creating aca-runtime subnet..."
+    az network vnet subnet create --resource-group $rg --vnet-name $vnet --name aca-runtime --address-prefixes 10.0.8.0/21 --private-endpoint-network-policies Disabled --private-link-service-network-policies Disabled --output none 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "aca-runtime subnet creation failed." }
+    Write-SubOK "aca-runtime subnet created (10.0.8.0/21)" -Last
+
+    # --- 4c: Run upstream bootstrap ---
+    Write-Host ""
+    Write-NOTE "4c. Running kayasax/SCIMTool bootstrap..."
+    Write-Host ""
+    Write-Host "   .------------------------------------------------------." -ForegroundColor Yellow
+    Write-Host "   | BOOTSTRAP WILL ASK YOU ~6 QUESTIONS.                  |" -ForegroundColor Yellow
+    Write-Host "   |                                                       |" -ForegroundColor Yellow
+    Write-Host "   | Pre-configured names (use THESE if asked):            |" -ForegroundColor Yellow
+    Write-Host ("   |   RG:       " + $rg.PadRight(40)       + "  |") -ForegroundColor Yellow
+    Write-Host ("   |   App:      " + $app.PadRight(40)      + "  |") -ForegroundColor Yellow
+    Write-Host ("   |   Location: " + $loc.PadRight(40)      + "  |") -ForegroundColor Yellow
+    Write-Host "   |                                                       |" -ForegroundColor Yellow
+    Write-Host "   | If the bootstrap offers these as defaults, just       |" -ForegroundColor Yellow
+    Write-Host "   | press Enter. If a different default is shown, TYPE    |" -ForegroundColor Yellow
+    Write-Host "   | the correct value from above.                         |" -ForegroundColor Yellow
+    Write-Host "   |                                                       |" -ForegroundColor Yellow
+    Write-Host "   | Secret prompts (3): press Enter to auto-generate.     |" -ForegroundColor Yellow
+    Write-Host "   | 'Change subscription?' prompt: type N.                |" -ForegroundColor Yellow
+    Write-Host "   '------------------------------------------------------'" -ForegroundColor Yellow
+    Write-Host ""
+    Pause-Script "Press Enter to start the bootstrap..."
 
     Write-Host ""
-    Write-Host "  ===== RE-RUNNING BOOTSTRAP ===============================" -ForegroundColor Magenta
-    Write-Host ""
-    Write-NOTE "The bootstrap will detect existing resources and continue."
-    Write-NOTE "When it asks questions, use the SAME values as before."
-    Write-NOTE "Just press Enter on everything."
+    Write-Host "  ===== BOOTSTRAP OUTPUT START =============================" -ForegroundColor Magenta
     Write-Host ""
 
-    Pause-Script "Press Enter to re-run deployment..."
-
-    Write-Host ""
-    Write-Host "  ===== BOOTSTRAP RETRY OUTPUT START =======================" -ForegroundColor Magenta
-    Write-Host ""
-
-    try { Start-Transcript -Path $logFile2 -Force | Out-Null } catch { }
-
+    try { Start-Transcript -Path $logFile -Force | Out-Null } catch { }
+    # Save bootstrap to temp .ps1 and invoke as a script. Avoids the PS7 optimizer
+    # error "Cannot overwrite variable Branch" that hits when Invoke-Expression
+    # compiles the script's nested param() blocks as a single scriptblock.
+    # UTF-8 BOM so PS 5.1 doesn't misread non-ASCII chars as Windows-1252.
+    $bootstrapPath = Join-Path $env:TEMP ("scimtool-bootstrap-" + $ts + ".ps1")
     try {
-        $bootstrapScript2 = (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/kayasax/SCIMTool/master/bootstrap.ps1" -UseBasicParsing).Content
-        Invoke-Expression $bootstrapScript2
+        $bootstrapScript = (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/kayasax/SCIMTool/master/bootstrap.ps1" -UseBasicParsing).Content
+        [System.IO.File]::WriteAllText($bootstrapPath, $bootstrapScript, [System.Text.UTF8Encoding]::new($true))
+        & $bootstrapPath
     } catch {
-        Write-FAIL "Bootstrap retry error: $($_.Exception.Message)"
+        Write-FAIL "Bootstrap error: $($_.Exception.Message)"
+    } finally {
+        if (Test-Path $bootstrapPath) { Remove-Item $bootstrapPath -Force -ErrorAction SilentlyContinue }
     }
-
     try { Stop-Transcript | Out-Null } catch { }
 
     Write-Host ""
-    Write-Host "  ===== BOOTSTRAP RETRY OUTPUT END =========================" -ForegroundColor Magenta
+    Write-Host "  ===== BOOTSTRAP OUTPUT END ===============================" -ForegroundColor Magenta
     Write-Host ""
 
-    # Re-parse from retry log
-    $parsed2 = Parse-Log $logFile2
-    if ($parsed2.AppUrl)  { $parsed.AppUrl  = $parsed2.AppUrl }
-    if ($parsed2.ScimEp)  { $parsed.ScimEp  = $parsed2.ScimEp }
-    if ($parsed2.Secret)  { $parsed.Secret  = $parsed2.Secret }
-    if ($parsed2.JWT)     { $parsed.JWT     = $parsed2.JWT }
-    if ($parsed2.OAuth)   { $parsed.OAuth   = $parsed2.OAuth }
-    if ($parsed2.RG)      { $parsed.RG      = $parsed2.RG }
-    if ($parsed2.AppName) { $parsed.AppName = $parsed2.AppName }
+    $parsed = Parse-Log $logFile
 
-    if ($parsed2.HasSubnetError) {
-        Write-FAIL "Subnet error occurred again. Deployment cannot continue."
-        Write-Host "   Please delete the Resource Group and try again:" -ForegroundColor Yellow
-        Write-Host "   az group delete --name $fixRG --yes --no-wait" -ForegroundColor White
-        Pause-Script "Press Enter to exit..."
-        exit 1
+    # Safety net: legacy subnet-delegation retry. With pre-creation, this should almost never fire.
+    if ($parsed.HasSubnetError) {
+        Write-WARN "Safety net fired: subnet delegation error after bootstrap. Re-delegating and retrying..."
+        $fixVnet = if ($parsed.AppName) { $parsed.AppName + "-vnet" } else { $vnet }
+        $fixRG = if ($parsed.RG) { $parsed.RG } else { $rg }
+        az network vnet subnet update --resource-group $fixRG --vnet-name $fixVnet --name aca-infra --delegations Microsoft.App/environments --output none 2>$null
+
+        try { Start-Transcript -Path $logFile2 -Force | Out-Null } catch { }
+        $bootstrapPath2 = Join-Path $env:TEMP ("scimtool-bootstrap-retry-" + $ts + ".ps1")
+        try {
+            $bootstrapScript2 = (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/kayasax/SCIMTool/master/bootstrap.ps1" -UseBasicParsing).Content
+            [System.IO.File]::WriteAllText($bootstrapPath2, $bootstrapScript2, [System.Text.UTF8Encoding]::new($true))
+            & $bootstrapPath2
+        } catch {
+            Write-FAIL "Bootstrap retry error: $($_.Exception.Message)"
+        } finally {
+            if (Test-Path $bootstrapPath2) { Remove-Item $bootstrapPath2 -Force -ErrorAction SilentlyContinue }
+        }
+        try { Stop-Transcript | Out-Null } catch { }
+
+        $parsed2 = Parse-Log $logFile2
+        foreach ($k in @('AppUrl','ScimEp','Secret','JWT','OAuth','RG','AppName')) {
+            if ($parsed2.$k) { $parsed.$k = $parsed2.$k }
+        }
+        if ($parsed2.HasSubnetError) { throw "Subnet delegation error persisted on retry." }
     }
+
+    if (-not $parsed.AppUrl) { throw "Bootstrap did not produce an App URL." }
+
+    Write-Host ""
+    Write-SubOK "Bootstrap completed"
+
+    # --- 4d: Apply AllowHTTPS NSG rule ---
+    Write-Host ""
+    Write-NOTE "4d. Applying AllowHTTPS NSG rule..."
+    $nsg = $app + "-vnet-aca-infra-nsg-" + $loc
+    Write-SubINFO ("NSG: " + $nsg)
+
+    $nsgExists = $false
+    $null = az network nsg rule show --nsg-name $nsg --resource-group $rg --name AllowHTTPS 2>$null
+    if ($LASTEXITCODE -eq 0) { $nsgExists = $true }
+
+    if ($nsgExists) {
+        Write-SubOK "AllowHTTPS rule already present -- skipping" -Last
+    } else {
+        Write-SubBUSY "Creating AllowHTTPS rule..."
+        az network nsg rule create --resource-group $rg --nsg-name $nsg --name AllowHTTPS --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --destination-port-ranges 443 --description "Allow HTTPS inbound for SCIMTool" --output none 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-SubOK "AllowHTTPS rule created" -Last
+        } else {
+            Write-SubWARN "Could not create AllowHTTPS rule automatically (non-fatal)" -Last
+        }
+    }
+
+    # --- 4e: Patch container runtime config (workarounds for two upstream Bicep bugs) ---
+    # Bug 1: kayasax/SCIMTool's containerapp.bicep declares env vars with values, but
+    #        somewhere in the deployment pipeline the `value:` fields are dropped, leaving
+    #        the container with empty env vars (PORT='', DATABASE_URL='', etc.). The app
+    #        then tries to bind a default port and crashes.
+    # Bug 2: The same Bicep defaults targetPort=80, but the container image runs as a
+    #        non-root user that cannot bind to ports < 1024 -> EACCES on listen.
+    # Fix both: set the env vars with computed values, and shift PORT + targetPort to 8080.
+    Write-Host ""
+    Write-NOTE "4e. Patching container runtime config (env vars + targetPort)..."
+
+    $blobAcct = ($app -replace '-', '') + "backup"
+
+    Write-SubBUSY "Setting non-secret env vars + PORT=8080..."
+    az containerapp update -n $app -g $rg --set-env-vars `
+        NODE_ENV=production `
+        PORT=8080 `
+        'DATABASE_URL=file:/tmp/local-data/scim.db' `
+        "BLOB_BACKUP_ACCOUNT=$blobAcct" `
+        BLOB_BACKUP_CONTAINER=scimtool-backups `
+        "SCIM_RG=$rg" `
+        "SCIM_APP=$app" `
+        'SCIM_REGISTRY=ghcr.io/kayasax' `
+        'SCIM_CURRENT_IMAGE=ghcr.io/kayasax/scimtool:latest' `
+        --output none 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "env var patch failed" }
+    Write-SubOK "env vars set"
+
+    Write-SubBUSY "Updating ingress targetPort to 8080..."
+    az containerapp ingress update -n $app -g $rg --target-port 8080 --output none 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "ingress targetPort update failed" }
+    Write-SubOK "ingress targetPort -> 8080" -Last
+} catch {
+    $step4Failed = $true
+    $step4FailMsg = $_.Exception.Message
+    Write-FAIL ("Step 4 failed: " + $step4FailMsg)
 }
 
-Write-OK "Bootstrap completed."
-Start-Sleep -Seconds 2
+if ($step4Failed) {
+    Write-Host ""
+    $cleanup = Read-Host "   Remove created resources ($rg)? [Y/n]"
+    if ($cleanup -eq "" -or $cleanup -match '^[Yy]') {
+        Remove-DeployedResources -ResourceGroup $rg
+    }
+    Pause-Script "Press Enter to exit..."
+    exit 1
+}
+
+Write-OK "Step 4 complete."
+Start-Sleep -Seconds 1
 
 # ===========================================================
-#  STEP 5: EXTRACT DETAILS
+#  STEP 5: READ DEPLOYMENT DETAILS
 # ===========================================================
 
 Write-Step 5 "READING DEPLOYMENT DETAILS" "Extracting URLs and secrets from output"
@@ -348,8 +691,6 @@ $scimEp  = $parsed.ScimEp
 $scimSec = $parsed.Secret
 $jwtSec  = $parsed.JWT
 $oaSec   = $parsed.OAuth
-$rg      = $parsed.RG
-$appName = $parsed.AppName
 
 if (-not $appUrl) {
     Write-WARN "Could not auto-detect App URL."
@@ -361,76 +702,24 @@ if (-not $scimSec) {
     Write-WARN "Could not auto-detect SCIM Secret."
     $scimSec = Read-Host "   Paste your SCIM Shared Secret"
 }
-if (-not $rg) {
-    Write-WARN "Could not auto-detect Resource Group."
-    $rg = Read-Host "   Type your Resource Group name"
-}
-if (-not $appName) {
-    if ($appUrl -match 'https://([^.]+)\.') { $appName = $matches[1].Trim() }
-}
-if (-not $appName) { $appName = Read-Host "   Type your App Name" }
 if (-not $jwtSec) { $jwtSec = "See deployment output above" }
 if (-not $oaSec)  { $oaSec  = "See deployment output above" }
 
 Write-Host ""
-Write-Host "   App URL:         $appUrl" -ForegroundColor Cyan
-Write-Host "   SCIM Endpoint:   $scimEp" -ForegroundColor Cyan
-Write-Host "   Resource Group:  $rg" -ForegroundColor Cyan
-Write-Host "   App Name:        $appName" -ForegroundColor Cyan
+Write-Host ("   App URL:         " + $appUrl) -ForegroundColor Cyan
+Write-Host ("   SCIM Endpoint:   " + $scimEp) -ForegroundColor Cyan
+Write-Host ("   Resource Group:  " + $rg)     -ForegroundColor Cyan
+Write-Host ("   App Name:        " + $app)    -ForegroundColor Cyan
 Write-Host ""
 
 Write-OK "Details captured."
 Start-Sleep -Seconds 1
 
 # ===========================================================
-#  STEP 6: NSG FIX
+#  STEP 6: VERIFY CONNECTIVITY
 # ===========================================================
 
-Write-Step 6 "FIXING NETWORK ACCESS" "Adding HTTPS inbound rule to NSG"
-
-Write-BUSY "Detecting location..."
-$loc = $null
-try {
-    $appJson = az containerapp show --name $appName --resource-group $rg 2>$null | ConvertFrom-Json
-    $loc = $appJson.location.ToLower().Replace(" ", "")
-    Write-OK "Location: $loc"
-} catch {
-    $loc = "eastus"
-    Write-WARN "Could not detect -- defaulting to eastus."
-}
-
-$nsg = $appName + "-vnet-aca-infra-nsg-" + $loc
-Write-NOTE "NSG: $nsg"
-
-Write-BUSY "Checking if rule exists..."
-$exists = $false
-try {
-    $null = az network nsg rule show --nsg-name $nsg --resource-group $rg --name AllowHTTPS 2>$null
-    if ($LASTEXITCODE -eq 0) { $exists = $true }
-} catch { }
-
-if ($exists) {
-    Write-OK "HTTPS rule already exists -- skipping."
-} else {
-    Write-BUSY "Creating AllowHTTPS rule..."
-    az network nsg rule create --resource-group $rg --nsg-name $nsg --name AllowHTTPS --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --destination-port-ranges 443 --description "Allow HTTPS inbound for SCIMTool" --output none 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        Write-OK "NSG rule created."
-    } else {
-        Write-FAIL "Could not create rule automatically."
-        $manualCmd = 'az network nsg rule create --resource-group ' + $rg + ' --nsg-name ' + $nsg + ' --name AllowHTTPS --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --destination-port-ranges 443'
-        Write-Host "   Run this manually:" -ForegroundColor Yellow
-        Write-Host "   $manualCmd" -ForegroundColor White
-    }
-}
-
-Start-Sleep -Seconds 1
-
-# ===========================================================
-#  STEP 7: VERIFY
-# ===========================================================
-
-Write-Step 7 "VERIFYING CONNECTIVITY" "Testing that the dashboard loads"
+Write-Step 6 "VERIFYING CONNECTIVITY" "Testing that the dashboard loads"
 
 Wait-Seconds 30 "Waiting for NSG propagation"
 
@@ -460,10 +749,10 @@ if (-not $live) {
 Start-Sleep -Seconds 1
 
 # ===========================================================
-#  STEP 8: SAVE
+#  STEP 7: SAVE CREDENTIALS
 # ===========================================================
 
-Write-Step 8 "SAVING CREDENTIALS" "Writing to Desktop file"
+Write-Step 7 "SAVING CREDENTIALS" "Writing to Desktop file"
 
 $lines = @()
 $lines += "==========================================================="
@@ -477,7 +766,7 @@ $lines += "  ID:   $subId"
 $lines += ""
 $lines += "AZURE RESOURCES"
 $lines += "  Resource Group: $rg"
-$lines += "  App Name:       $appName"
+$lines += "  App Name:       $app"
 $lines += "  Location:       $loc"
 $lines += ""
 $lines += "URLS"
@@ -542,7 +831,7 @@ $content = $lines -join "`r`n"
 try {
     $content | Out-File -FilePath $credFile -Encoding UTF8
     Write-OK "Saved to Desktop:"
-    Write-Host "   $credFile" -ForegroundColor Cyan
+    Write-Host ("   " + $credFile) -ForegroundColor Cyan
 } catch {
     Write-FAIL "Could not write file. Printing credentials:"
     Write-Host ""
@@ -554,41 +843,66 @@ if ($live) {
     Start-Process $appUrl
 }
 
-# Cleanup
+# Cleanup log files
 if (Test-Path $logFile)  { Remove-Item $logFile  -Force -ErrorAction SilentlyContinue }
 if (Test-Path $logFile2) { Remove-Item $logFile2 -Force -ErrorAction SilentlyContinue }
 
 # ===========================================================
-#  FINAL
+#  FINAL SUMMARY BOX
+# ===========================================================
+
+$maskedSecret = "(see credentials file)"
+if ($scimSec -and $scimSec.Length -ge 8) {
+    $maskedSecret = $scimSec.Substring(0, 8) + "... (full value in credentials file)"
+}
+
+$statusLabel = "DEPLOYED -- verify manually"
+$statusColor = [ConsoleColor]::Yellow
+if ($live) {
+    $statusLabel = "LIVE"
+    $statusColor = [ConsoleColor]::Green
+}
+
+$summaryTop = "  " + $gTL + ($gH * ($boxWidth - 2)) + $gTR
+$summaryMid = "  " + $gML + ($gH * ($boxWidth - 2)) + $gMR
+$summaryBot = "  " + $gBL + ($gH * ($boxWidth - 2)) + $gBR
+
+Write-Host ""
+Write-Host ""
+Write-Host $summaryTop -ForegroundColor Green
+Write-Host "                        DEPLOYMENT COMPLETE" -ForegroundColor Green
+Write-Host $summaryMid -ForegroundColor Green
+Write-Host ""
+Write-Host ("     Status:    " + $statusLabel) -ForegroundColor $statusColor
+Write-Host ""
+Write-Host "     Resources:" -ForegroundColor White
+Write-Host ("       RG:        " + $rg)  -ForegroundColor Cyan
+Write-Host ("       App:       " + $app) -ForegroundColor Cyan
+Write-Host ("       Location:  " + $loc) -ForegroundColor Cyan
+Write-Host ""
+Write-Host "     URLs:" -ForegroundColor White
+Write-Host ("       Dashboard:     " + $appUrl) -ForegroundColor Cyan
+Write-Host ("       SCIM Endpoint: " + $scimEp) -ForegroundColor Cyan
+Write-Host ""
+Write-Host ("     Secret:    " + $maskedSecret) -ForegroundColor Yellow
+Write-Host ("     Saved to:  " + $credFile) -ForegroundColor Gray
+Write-Host ""
+Write-Host $summaryBot -ForegroundColor Green
+Write-Host ""
+
+# ===========================================================
+#  ENTRA ID INSTRUCTIONS
 # ===========================================================
 
 Write-Host ""
-Write-Host ""
-Write-Host "  ==========================================================" -ForegroundColor Green
-Write-Host "      DEPLOYMENT COMPLETE" -ForegroundColor Green
-Write-Host "  ==========================================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "   Credentials file:  $credFile" -ForegroundColor Cyan
-Write-Host "   Dashboard:         $appUrl" -ForegroundColor Cyan
-Write-Host "   SCIM Endpoint:     $scimEp" -ForegroundColor Cyan
-Write-Host ""
-
-if ($live) {
-    Write-Host "   Status: LIVE" -ForegroundColor Green
-} else {
-    Write-Host "   Status: Deployed -- try URL in browser shortly." -ForegroundColor Yellow
-}
-
-Write-Host ""
-Write-Host ""
 Write-Host "  ==========================================================" -ForegroundColor White
-Write-Host "   WHAT TO DO NOW -- Entra ID Setup Instructions" -ForegroundColor White
+Write-Host "   NEXT: Configure Entra ID" -ForegroundColor White
 Write-Host "  ==========================================================" -ForegroundColor White
 Write-Host ""
 Write-Host "   A. OPEN THE DASHBOARD" -ForegroundColor Cyan
-Write-Host "      Go to: $appUrl" -ForegroundColor White
+Write-Host ("      Go to: " + $appUrl) -ForegroundColor White
 Write-Host "      When it asks for Bearer Token, paste:" -ForegroundColor White
-Write-Host "      $scimSec" -ForegroundColor Yellow
+Write-Host ("      " + $scimSec) -ForegroundColor Yellow
 Write-Host "      Click Save Token." -ForegroundColor White
 Write-Host ""
 Write-Host "   B. CREATE THE ENTERPRISE APP IN ENTRA" -ForegroundColor Cyan
@@ -602,9 +916,9 @@ Write-Host "   C. CONFIGURE PROVISIONING" -ForegroundColor Cyan
 Write-Host "      1. Go to Provisioning then Get started" -ForegroundColor White
 Write-Host "      2. Mode: Automatic" -ForegroundColor White
 Write-Host "      3. Tenant URL -- copy this:" -ForegroundColor White
-Write-Host "         $scimEp" -ForegroundColor Yellow
+Write-Host ("         " + $scimEp) -ForegroundColor Yellow
 Write-Host "      4. Secret Token -- copy this:" -ForegroundColor White
-Write-Host "         $scimSec" -ForegroundColor Yellow
+Write-Host ("         " + $scimSec) -ForegroundColor Yellow
 Write-Host "      5. Click Test Connection -- should show green" -ForegroundColor White
 Write-Host "      6. Click Save" -ForegroundColor White
 Write-Host ""
