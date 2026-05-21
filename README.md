@@ -2,9 +2,43 @@
 
 ![Version](https://img.shields.io/badge/version-0.8.2-blue) ![Status](https://img.shields.io/badge/status-public%20beta-orange) ![PowerShell](https://img.shields.io/badge/PowerShell-5.1%20%7C%207.x-blue) ![Azure CLI](https://img.shields.io/badge/Azure%20CLI-2.50%2B-blue)
 
-One-click PowerShell deployer for [kayasax/SCIMTool](https://github.com/kayasax/SCIMTool) — stands up your own SCIM 2.0 provisioning inspector in Azure in about 10 minutes. Point Microsoft Entra ID at it to see exactly what your tenant sends on the wire.
+> **This is a thin PowerShell facilitator around [kayasax/SCIMTool](https://github.com/kayasax/SCIMTool).**
+> The actual SCIM 2.0 provisioning monitor — the dashboard, the activity feed, the SCIM endpoint, the storage architecture, the container image — is built and maintained by [@kayasax](https://github.com/kayasax). All credit for the product belongs to them. **Please ⭐ [their repository](https://github.com/kayasax/SCIMTool) first.** This wrapper is just glue.
 
-> **v0.8.2 is the first end-to-end working public beta.** Adds workarounds for two upstream Bicep bugs (missing env-var values; `targetPort=80` incompatible with non-root container) that were preventing the container from starting in v0.8.0–v0.8.1. It's been tested by the author on personal Visual Studio subscriptions. Treat it as a lab tool, not a production deployer. Read the [Known issues](#known-issues-v08-beta) section before you start. Feedback is very welcome via [GitHub issues](https://github.com/ilsalai/scimtool-lab-deployer/issues).
+This wrapper exists for one reason: the upstream's 5-minute one-liner is a great starting point, but in real lab deployments we kept hitting the same set of rough edges (PowerShell 7 IEX incompatibility, missing `aca-runtime` subnet, empty container env vars, `targetPort=80` on a non-root container, intermittent subnet-delegation races). Each one is solvable in a few minutes once you know about it; together they meant a deploy could take an hour or more of guess-and-check before you reached a working dashboard. This wrapper automates around them so the deploy completes on the first try.
+
+> **v0.8.2** is the first version of this wrapper that runs end-to-end without manual intervention. Tested by the author on personal Visual Studio subscriptions. Read [Known issues](#known-issues-v08-beta) before you start. Feedback via [GitHub issues](https://github.com/ilsalai/scimtool-lab-deployer/issues).
+
+---
+
+## Which deploy should you use?
+
+**The canonical experience is the [upstream's 5-minute deploy](https://github.com/kayasax/SCIMTool#-5-minutes-cloud-deploy):**
+
+```powershell
+iex (iwr https://raw.githubusercontent.com/kayasax/SCIMTool/master/bootstrap.ps1).Content
+```
+
+That's the source of truth. It works — eventually. You may need to retry on subnet-delegation races, manually patch missing container env vars, override the default `targetPort=80`, and add an NSG inbound rule for HTTPS before the dashboard becomes reachable. If you don't mind a hands-on session, this is the path with the fewest moving parts.
+
+**This wrapper exists for the rest of us** — engineers who want the deploy to just run to green on the first try. It calls the same upstream bootstrap; it just layers automation around the parts that bite in practice.
+
+### What the wrapper handles for you
+
+| Upstream rough edge | What this wrapper does |
+|---|---|
+| Bootstrap's `iex` fails on PowerShell 7 with `Cannot overwrite variable Branch` | Saves bootstrap to a temp `.ps1` and invokes it as a script (sidesteps the PS 7 optimizer) |
+| Subnet-delegation race produces `SubnetDelegationError` on the first attempt | Pre-creates the VNet with `aca-infra` already delegated to `Microsoft.App/environments` before bootstrap runs |
+| Bootstrap fails to create `aca-runtime` subnet (its default CIDR `10.40.8.0/21` doesn't fit a BYO-VNet) | Pre-creates `aca-runtime` at `10.0.8.0/21` to match |
+| Container env vars (`PORT`, `DATABASE_URL`, `BLOB_BACKUP_*`, `SCIM_*`) deploy with empty values, container crash-loops | Patches all 9 missing env vars with computed values after the bootstrap completes |
+| Container can't bind to `targetPort=80` (image runs as non-root; `EACCES` on `listen`) | Sets `PORT=8080` and runs `az containerapp ingress update --target-port 8080` |
+| `az login` fails on Conditional Access or the embedded browser flow | Automatic device-code login fallback |
+| Subscription picker silently uses your default sub even if it's the wrong one | Enumerates all subscriptions across all tenants and prompts when there's more than one Enabled |
+| Bootstrap exits halfway and leaves a half-built resource group | Try/catch with `Remove created resources? [Y/n]` cleanup prompt |
+| Dashboard URL not reachable until you manually add an NSG `AllowHTTPS` rule | Done automatically as Step 4d |
+| Credentials only echoed to console — lose them if RDP disconnects | Writes timestamped credentials file to your Desktop with the full Entra ID configuration walkthrough |
+
+Every one of these is an upstream rough edge that could (and ideally will) be fixed in `kayasax/SCIMTool` directly. We're tracking them as issues to file with the upstream so this wrapper can shrink over time. Until then, this layer smooths the deploy.
 
 ---
 
@@ -88,8 +122,6 @@ The credentials file contains the full walkthrough. The 60-second version:
 ---
 
 ## Known issues (v0.8 beta)
-
-Be honest with yourself about what state this is in before you start handing it to your team:
 
 - ~~**The dashboard may show "stream timeout" right after deploy completes.**~~ **Fixed in v0.8.2** — the container runtime config (env vars + targetPort) is now patched after the upstream bootstrap to work around two upstream Bicep bugs. If you still see this, you're on an older copy.
 - **The NSG-rule step may warn `Could not create AllowHTTPS rule`.** The script uses a v0.5-era NSG name guess that the current Container Apps Workload Profiles environment often doesn't create under that name. Treat the warning as informational — if your dashboard eventually loads, the rule wasn't needed.
@@ -203,6 +235,19 @@ Found something broken? Open an issue at [github.com/ilsalai/scimtool-lab-deploy
 
 ## Credits
 
-- **[kayasax/SCIMTool](https://github.com/kayasax/SCIMTool)** — the actual tool. This repo is just the wrapper that automates the deploy.
+### The actual product — [kayasax/SCIMTool](https://github.com/kayasax/SCIMTool)
+
+The SCIM 2.0 provisioning monitor itself — the dashboard, the activity feed, the human-readable event translation, the user and group browser, the blob snapshot persistence, the Bicep templates, the container image — is the work of **[@kayasax](https://github.com/kayasax)**. None of this exists without that project.
+
+If this wrapper saved you time, the right thing to do is:
+
+1. **⭐ [Star kayasax/SCIMTool](https://github.com/kayasax/SCIMTool)** — that's the upstream
+2. **File feature requests and bug reports on [their issues](https://github.com/kayasax/SCIMTool/issues)** — not here, unless the issue is specifically with this wrapper
+3. **Read [their DEPLOYMENT.md](https://github.com/kayasax/SCIMTool/blob/master/DEPLOYMENT.md)** for architecture, options, and the canonical deploy path
+
+This wrapper is genuinely just glue. When the upstream's rough edges get smoothed out (and they will), most of what's in `Deploy-SCIMToolLab.ps1` becomes unnecessary and we can shrink it back toward "download the upstream bootstrap, run it, save credentials."
+
+### Wrapper maintainer
+
 - **Silvestre Gaitan** — CSS SYNC, Nebula Mexico
 - All the engineers who tested v0.1 through v0.7 internally
