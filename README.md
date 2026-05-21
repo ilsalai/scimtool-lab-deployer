@@ -15,7 +15,7 @@ One-click PowerShell deployer for [kayasax/SCIMTool](https://github.com/kayasax/
 **2. Paste these two lines:**
 
 ```powershell
-iwr https://raw.githubusercontent.com/ilsalai/scimtool-lab-deployer/main/Deploy-SCIMToolLab.ps1 -OutFile $env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1
+iwr https://raw.githubusercontent.com/ilsalai/scimtool-lab-deployer/v0.8.0/Deploy-SCIMToolLab.ps1 -OutFile $env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1
 Set-ExecutionPolicy Bypass -Scope Process -Force; & "$env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1"
 ```
 
@@ -148,7 +148,7 @@ If you see `SubnetDelegationError: Subnet '<name>/aca-infra' is not delegated to
 You're running a stale copy of the script (pre-v0.7 patch). Re-download:
 
 ```powershell
-iwr https://raw.githubusercontent.com/ilsalai/scimtool-lab-deployer/main/Deploy-SCIMToolLab.ps1 -OutFile $env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1
+iwr https://raw.githubusercontent.com/ilsalai/scimtool-lab-deployer/v0.8.0/Deploy-SCIMToolLab.ps1 -OutFile $env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1
 ```
 
 The current script writes the upstream bootstrap to a temp `.ps1` file and invokes it as a script, which sidesteps the PowerShell 7 optimizer issue that caused this error.
