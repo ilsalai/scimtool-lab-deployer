@@ -4,6 +4,28 @@ All notable changes to the SCIMTool Lab Deployer are recorded here.
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions are pre-1.0 while the deployer stabilizes — expect each iteration to land breaking changes.
 
+## [0.8] — 2026-05-06
+
+**First public beta.** Same architecture as 0.7 with the IEX-to-file-invocation hotfix already folded in. This release is primarily about polish: a much simpler README with a Quick Start at the top, an explicit prerequisite table, a Cost Warning, an honest Known Issues section, and a version bump everywhere so external testers can file feedback against a fixed reference point.
+
+### Added
+- **Quick Start section at the top of the README** — one short paragraph plus a two-line PowerShell snippet, designed for someone landing on the GitHub page for the first time.
+- **Prerequisites table** with explicit version requirements, a "how to check" column, and a "where to get it" column.
+- **Cost and tenant warnings** — the deploy creates real resources that cost ~$5–20/month and must not be pointed at customer or production subscriptions.
+- **Known Issues section** — honest about the stream-timeout symptom, the NSG warning, the missing `aca-runtime` subnet, and PS 7 preview UI glitches. Lets testers self-diagnose before opening issues.
+- **Container-stays-Unhealthy troubleshooting** — new section covering the BYO-VNet + private-endpoint DNS resolution race that caused v0.7's test deploys to hang.
+- **GitHub issue-reporting guidance** — what to include in a bug report so the loop closes faster.
+- **Shields.io badges** at the top of the README for version, status, PowerShell compat, and Azure CLI requirement.
+
+### Changed
+- **Version bump everywhere** — script header comment, runtime banner, README status line, and CHANGELOG all read `v0.8`.
+- **Troubleshooting reorganized by symptom** rather than by internal mechanic. Easier to navigate for a first-time user who sees a specific error.
+
+### Known limitations (carried over from 0.7, scoped for v0.9)
+- The pre-created VNet doesn't include an `aca-runtime` subnet. The upstream bootstrap tries to create it and logs `Failed to create subnet aca-runtime` (non-fatal, but noisy).
+- The NSG rule application uses a name-guess that misses under most Workload Profiles environments — warning only, doesn't block deploy.
+- Dashboard reachability is not guaranteed on first hit. The container may need 2–5 minutes after deploy completion to become responsive, and the BYO-VNet + private-endpoint DNS race occasionally leaves the container Unhealthy entirely.
+
 ## [0.7] — 2026-04-23
 
 Current release. Major architecture change: the deployer now pre-creates the resource group and properly-delegated VNet *before* running the upstream bootstrap, so the subnet-delegation race condition can no longer happen on the happy path. Also ships the login and subscription-picker hardening that corporate tenants with Conditional Access have been asking for.
