@@ -4,6 +4,18 @@ All notable changes to the SCIMTool Lab Deployer are recorded here.
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions are pre-1.0 while the deployer stabilizes — expect each iteration to land breaking changes.
 
+## [0.9] — 2026-05-21
+
+**First version that deploys end-to-end on the first try, with a polished README aimed at first-time users.** No code changes from v0.8.2 — same architecture, same workarounds, same patches. This release is a polish + visibility milestone: the deploy has been verified working repeatedly, the README has been restructured to lead with the one-liner, and the version label moves from "0.8.x patch series" to "0.9 — works now."
+
+### Changed
+- **README restructured around a super-brief intro.** New top of file: title, badges, one-line tagline, "Run this in elevated PowerShell" with the one-liner, "You'll need" (prerequisites as a short list), "You'll get" (outcomes as a short list), then a prominent kayasax credit blurb. Everything else (Entra ID config, step list, the comparison table with upstream, troubleshooting) lives below, kept for readers who want the depth.
+- **Version bump v0.8.2 → v0.9** in the script header, runtime banner, README badge, status line, and quick-start URLs. README badge color shifted from blue to bright green to reflect that the deploy works.
+
+### Carried over from 0.8.x
+- All v0.8.2 workarounds (env var patching, `PORT=8080` + `targetPort=8080`, file-based bootstrap invocation, pre-create RG + VNet + 3 subnets, NSG rule, cleanup-on-failure, device-code login fallback, multi-tenant subscription picker, Unicode UI).
+- Honest credit to [kayasax/SCIMTool](https://github.com/kayasax/SCIMTool) as the actual product. This deployer is glue.
+
 ## [0.8.2] — 2026-05-21
 
 **First end-to-end working public beta.** Adds a new Step 4e that patches the container runtime config after the upstream bootstrap, working around two upstream Bicep bugs that were leaving the container in a crash loop (`exit code 1, ProcessExited`) on every v0.8.0 / v0.8.1 deploy.

@@ -1,4 +1,4 @@
-# SCIMTool Lab - One-Click Deployment v0.8.2
+# SCIMTool Lab - One-Click Deployment v0.9
 # Based on github.com/kayasax/SCIMTool
 # Author: Silvestre Gaitan - Nebula Mexico - April 2026
 #
@@ -215,7 +215,7 @@ $bMid = "  " + $gML + ($gH * ($boxWidth - 2)) + $gMR
 $bBot = "  " + $gBL + ($gH * ($boxWidth - 2)) + $gBR
 Write-Host ""
 Write-Host $bTop -ForegroundColor Cyan
-Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.8.2" -ForegroundColor Cyan
+Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.9" -ForegroundColor Cyan
 Write-Host $bMid -ForegroundColor Cyan
 Write-Host "      A personal SCIM 2.0 provisioning lab in Azure." -ForegroundColor Gray
 Write-Host "      Based on: github.com/kayasax/SCIMTool" -ForegroundColor Gray
