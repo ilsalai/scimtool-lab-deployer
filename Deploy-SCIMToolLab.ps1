@@ -1,4 +1,4 @@
-# SCIMTool Lab - One-Click Deployment v0.8.1
+# SCIMTool Lab - One-Click Deployment v0.8.2
 # Based on github.com/kayasax/SCIMTool
 # Author: Silvestre Gaitan - Nebula Mexico - April 2026
 #
@@ -215,7 +215,7 @@ $bMid = "  " + $gML + ($gH * ($boxWidth - 2)) + $gMR
 $bBot = "  " + $gBL + ($gH * ($boxWidth - 2)) + $gBR
 Write-Host ""
 Write-Host $bTop -ForegroundColor Cyan
-Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.8.1" -ForegroundColor Cyan
+Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.8.2" -ForegroundColor Cyan
 Write-Host $bMid -ForegroundColor Cyan
 Write-Host "      A personal SCIM 2.0 provisioning lab in Azure." -ForegroundColor Gray
 Write-Host "      Based on: github.com/kayasax/SCIMTool" -ForegroundColor Gray
@@ -628,6 +628,39 @@ try {
             Write-SubWARN "Could not create AllowHTTPS rule automatically (non-fatal)" -Last
         }
     }
+
+    # --- 4e: Patch container runtime config (workarounds for two upstream Bicep bugs) ---
+    # Bug 1: kayasax/SCIMTool's containerapp.bicep declares env vars with values, but
+    #        somewhere in the deployment pipeline the `value:` fields are dropped, leaving
+    #        the container with empty env vars (PORT='', DATABASE_URL='', etc.). The app
+    #        then tries to bind a default port and crashes.
+    # Bug 2: The same Bicep defaults targetPort=80, but the container image runs as a
+    #        non-root user that cannot bind to ports < 1024 -> EACCES on listen.
+    # Fix both: set the env vars with computed values, and shift PORT + targetPort to 8080.
+    Write-Host ""
+    Write-NOTE "4e. Patching container runtime config (env vars + targetPort)..."
+
+    $blobAcct = ($app -replace '-', '') + "backup"
+
+    Write-SubBUSY "Setting non-secret env vars + PORT=8080..."
+    az containerapp update -n $app -g $rg --set-env-vars `
+        NODE_ENV=production `
+        PORT=8080 `
+        'DATABASE_URL=file:/tmp/local-data/scim.db' `
+        "BLOB_BACKUP_ACCOUNT=$blobAcct" `
+        BLOB_BACKUP_CONTAINER=scimtool-backups `
+        "SCIM_RG=$rg" `
+        "SCIM_APP=$app" `
+        'SCIM_REGISTRY=ghcr.io/kayasax' `
+        'SCIM_CURRENT_IMAGE=ghcr.io/kayasax/scimtool:latest' `
+        --output none 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "env var patch failed" }
+    Write-SubOK "env vars set"
+
+    Write-SubBUSY "Updating ingress targetPort to 8080..."
+    az containerapp ingress update -n $app -g $rg --target-port 8080 --output none 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "ingress targetPort update failed" }
+    Write-SubOK "ingress targetPort -> 8080" -Last
 } catch {
     $step4Failed = $true
     $step4FailMsg = $_.Exception.Message

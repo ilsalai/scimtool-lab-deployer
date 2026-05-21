@@ -4,6 +4,21 @@ All notable changes to the SCIMTool Lab Deployer are recorded here.
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions are pre-1.0 while the deployer stabilizes — expect each iteration to land breaking changes.
 
+## [0.8.2] — 2026-05-21
+
+**First end-to-end working public beta.** Adds a new Step 4e that patches the container runtime config after the upstream bootstrap, working around two upstream Bicep bugs that were leaving the container in a crash loop (`exit code 1, ProcessExited`) on every v0.8.0 / v0.8.1 deploy.
+
+### Fixed
+- **Patch missing env var values (upstream bug #1).** The kayasax/SCIMTool `infra/containerapp.bicep` declares env vars like `PORT`, `DATABASE_URL`, `NODE_ENV`, `BLOB_BACKUP_ACCOUNT`, etc. with `value:` fields, but somewhere in the deployment pipeline those values get dropped — the deployed container ends up with the env vars declared but **empty**. Step 4e now sets them explicitly with computed values (`BLOB_BACKUP_ACCOUNT` derived from the app name, `SCIM_RG`/`SCIM_APP` from our local vars, `DATABASE_URL` hardcoded to the SQLite path the upstream expects, etc.).
+- **Override `targetPort=80` (upstream bug #2).** The upstream Bicep defaults the Container App's `targetPort` to `80`, but the `ghcr.io/kayasax/scimtool:latest` image runs Node.js as a non-root user and cannot bind to privileged ports (< 1024). The container crashes on `listen()` with `EACCES`. Step 4e now sets `PORT=8080` in env vars AND runs `az containerapp ingress update --target-port 8080` so both sides of the ingress agree on `8080`.
+
+### Diagnostic notes (for posterity)
+- v0.8.0 and v0.8.1 both hit this same crash but the symptom looked different at each layer: "stream timeout" in the browser, "Activation failed / Deployment Progress Deadline Exceeded" in the portal, "Container terminated with exit code 1, ProcessExited" in system logs, and finally the smoking gun in Log Analytics console logs: `Error: listen EACCES: permission denied 0.0.0.0:80`.
+- The application logs in the portal's Revision Details blade default to a 1-hour window. For crash-loop forensics, use `az monitor log-analytics query -w <workspace-id> --analytics-query "ContainerAppConsoleLogs_CL | where ContainerAppName_s == '<app>' | top 50 by TimeGenerated desc"` to bypass the time filter.
+
+### Carried over from 0.8.1
+- Pre-creates `aca-runtime` subnet at `10.0.8.0/23` so the upstream bootstrap stops logging `Failed to create subnet aca-runtime`.
+
 ## [0.8.1] — 2026-05-21
 
 Patch release. Pre-creates the `aca-runtime` subnet that the upstream bootstrap was trying to create and failing on every v0.8 deploy. This is the most likely root cause of the "stream timeout" dashboard symptom reported in v0.8.0 testing.
