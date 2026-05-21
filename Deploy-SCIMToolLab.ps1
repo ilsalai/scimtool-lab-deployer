@@ -1,4 +1,4 @@
-# SCIMTool Lab - One-Click Deployment v0.8
+# SCIMTool Lab - One-Click Deployment v0.8.1
 # Based on github.com/kayasax/SCIMTool
 # Author: Silvestre Gaitan - Nebula Mexico - April 2026
 #
@@ -215,7 +215,7 @@ $bMid = "  " + $gML + ($gH * ($boxWidth - 2)) + $gMR
 $bBot = "  " + $gBL + ($gH * ($boxWidth - 2)) + $gBR
 Write-Host ""
 Write-Host $bTop -ForegroundColor Cyan
-Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.8" -ForegroundColor Cyan
+Write-Host "      SCIMTool Lab -- One-Click Deployment  v0.8.1" -ForegroundColor Cyan
 Write-Host $bMid -ForegroundColor Cyan
 Write-Host "      A personal SCIM 2.0 provisioning lab in Azure." -ForegroundColor Gray
 Write-Host "      Based on: github.com/kayasax/SCIMTool" -ForegroundColor Gray
@@ -513,7 +513,18 @@ try {
     Write-SubBUSY "Creating private-endpoints subnet..."
     az network vnet subnet create --resource-group $rg --vnet-name $vnet --name private-endpoints --address-prefixes 10.0.2.0/24 --output none 2>$null
     if ($LASTEXITCODE -ne 0) { throw "private-endpoints subnet creation failed." }
-    Write-SubOK "private-endpoints subnet created (10.0.2.0/24)" -Last
+    Write-SubOK "private-endpoints subnet created (10.0.2.0/24)"
+
+    # aca-runtime: workload subnet for the Container App Environment in Workload
+    # Profiles mode. Upstream Bicep (kayasax/SCIMTool infra/networking.bicep)
+    # declares this with policies Disabled and default CIDR 10.40.8.0/21 (which
+    # does NOT fit our 10.0.0.0/16 VNet) -- we place it at 10.0.8.0/21 instead.
+    # When this subnet is missing, the upstream bootstrap logs "Failed to create
+    # subnet aca-runtime" and proceeds without it, leaving the container Unhealthy.
+    Write-SubBUSY "Creating aca-runtime subnet..."
+    az network vnet subnet create --resource-group $rg --vnet-name $vnet --name aca-runtime --address-prefixes 10.0.8.0/21 --private-endpoint-network-policies Disabled --private-link-service-network-policies Disabled --output none 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "aca-runtime subnet creation failed." }
+    Write-SubOK "aca-runtime subnet created (10.0.8.0/21)" -Last
 
     # --- 4c: Run upstream bootstrap ---
     Write-Host ""

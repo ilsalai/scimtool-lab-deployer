@@ -4,6 +4,16 @@ All notable changes to the SCIMTool Lab Deployer are recorded here.
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions are pre-1.0 while the deployer stabilizes — expect each iteration to land breaking changes.
 
+## [0.8.1] — 2026-05-21
+
+Patch release. Pre-creates the `aca-runtime` subnet that the upstream bootstrap was trying to create and failing on every v0.8 deploy. This is the most likely root cause of the "stream timeout" dashboard symptom reported in v0.8.0 testing.
+
+### Fixed
+- **Pre-create the `aca-runtime` subnet** at `10.0.8.0/21` with `privateEndpointNetworkPolicies` and `privateLinkServiceNetworkPolicies` disabled, matching the upstream `infra/networking.bicep`. The upstream's default CIDR for this subnet (`10.40.8.0/21`) doesn't fit our `10.0.0.0/16` VNet, which is why the bootstrap's attempt to create it failed in v0.8.0. Without `aca-runtime`, the Container App Environment runs the workload in the infrastructure subnet, where private-endpoint traffic is blocked by default policies, leaving the container Unhealthy.
+
+### Changed
+- README and badges bumped from `v0.8.0` to `v0.8.1`. Quick-start URLs now pin to the new tag.
+
 ## [0.8] — 2026-05-06
 
 **First public beta.** Same architecture as 0.7 with the IEX-to-file-invocation hotfix already folded in. This release is primarily about polish: a much simpler README with a Quick Start at the top, an explicit prerequisite table, a Cost Warning, an honest Known Issues section, and a version bump everywhere so external testers can file feedback against a fixed reference point.

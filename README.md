@@ -1,10 +1,10 @@
 # SCIMTool Lab Deployer
 
-![Version](https://img.shields.io/badge/version-0.8-blue) ![Status](https://img.shields.io/badge/status-public%20beta-orange) ![PowerShell](https://img.shields.io/badge/PowerShell-5.1%20%7C%207.x-blue) ![Azure CLI](https://img.shields.io/badge/Azure%20CLI-2.50%2B-blue)
+![Version](https://img.shields.io/badge/version-0.8.1-blue) ![Status](https://img.shields.io/badge/status-public%20beta-orange) ![PowerShell](https://img.shields.io/badge/PowerShell-5.1%20%7C%207.x-blue) ![Azure CLI](https://img.shields.io/badge/Azure%20CLI-2.50%2B-blue)
 
 One-click PowerShell deployer for [kayasax/SCIMTool](https://github.com/kayasax/SCIMTool) — stands up your own SCIM 2.0 provisioning inspector in Azure in about 10 minutes. Point Microsoft Entra ID at it to see exactly what your tenant sends on the wire.
 
-> **v0.8 is the first public beta.** It's been tested by the author on personal Visual Studio subscriptions. Treat it as a lab tool, not a production deployer. Read the [Known issues](#known-issues-v08-beta) section before you start. Feedback is very welcome via [GitHub issues](https://github.com/ilsalai/scimtool-lab-deployer/issues).
+> **v0.8.1 is a patch on the first public beta.** Pre-creates the `aca-runtime` subnet that the upstream bootstrap needs. It's been tested by the author on personal Visual Studio subscriptions. Treat it as a lab tool, not a production deployer. Read the [Known issues](#known-issues-v08-beta) section before you start. Feedback is very welcome via [GitHub issues](https://github.com/ilsalai/scimtool-lab-deployer/issues).
 
 ---
 
@@ -15,7 +15,7 @@ One-click PowerShell deployer for [kayasax/SCIMTool](https://github.com/kayasax/
 **2. Paste these two lines:**
 
 ```powershell
-iwr https://raw.githubusercontent.com/ilsalai/scimtool-lab-deployer/v0.8.0/Deploy-SCIMToolLab.ps1 -OutFile $env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1
+iwr https://raw.githubusercontent.com/ilsalai/scimtool-lab-deployer/v0.8.1/Deploy-SCIMToolLab.ps1 -OutFile $env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1
 Set-ExecutionPolicy Bypass -Scope Process -Force; & "$env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1"
 ```
 
@@ -93,7 +93,7 @@ Be honest with yourself about what state this is in before you start handing it 
 
 - **The dashboard may show "stream timeout" right after deploy completes.** This is the most-reported issue. The container behind the URL takes a few minutes to settle after the Container App platform marks the deployment "Successful". Wait 2–5 minutes and refresh. If it's still timing out after 5 minutes, see [troubleshooting](#troubleshooting).
 - **The NSG-rule step may warn `Could not create AllowHTTPS rule`.** The script uses a v0.5-era NSG name guess that the current Container Apps Workload Profiles environment often doesn't create under that name. Treat the warning as informational — if your dashboard eventually loads, the rule wasn't needed.
-- **The upstream bootstrap logs `Failed to create subnet aca-runtime`.** This script pre-creates `aca-infra` and `private-endpoints` but not `aca-runtime`. The bootstrap proceeds anyway. Fix planned for v0.9.
+- ~~**The upstream bootstrap logs `Failed to create subnet aca-runtime`.**~~ **Fixed in v0.8.1** — the deployer now pre-creates `aca-runtime` at `10.0.8.0/21`. If you see this error you're on an older copy.
 - **PowerShell 7 preview builds may show minor UI glitches.** Functionality is unaffected; the progress bar may flicker.
 
 ---
@@ -148,7 +148,7 @@ If you see `SubnetDelegationError: Subnet '<name>/aca-infra' is not delegated to
 You're running a stale copy of the script (pre-v0.7 patch). Re-download:
 
 ```powershell
-iwr https://raw.githubusercontent.com/ilsalai/scimtool-lab-deployer/v0.8.0/Deploy-SCIMToolLab.ps1 -OutFile $env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1
+iwr https://raw.githubusercontent.com/ilsalai/scimtool-lab-deployer/v0.8.1/Deploy-SCIMToolLab.ps1 -OutFile $env:USERPROFILE\Downloads\Deploy-SCIMToolLab.ps1
 ```
 
 The current script writes the upstream bootstrap to a temp `.ps1` file and invokes it as a script, which sidesteps the PowerShell 7 optimizer issue that caused this error.
