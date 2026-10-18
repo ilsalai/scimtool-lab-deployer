@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nueve Vidas</title>
+  <meta name="description" content="Tower defense de gatos y roedores en una tierra que evolucionó sin humanos. Nueve vidas, dos bandos, una Rueda.">
+  <meta name="theme-color" content="#15201a">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app" class="faction-gatos">
+  <header id="hud">
+    <div class="hud-left">
+      <button id="btn-menu" class="btn ghost small" title="Menú / pausa (Esc)">☰ Menú</button>
+      <div class="char-chip">
+        <canvas id="hud-avatar" width="44" height="44"></canvas>
+        <div>
+          <div id="hud-name" class="chip-name">—</div>
+          <div id="hud-lives" class="lives" title="Tus nueve oportunidades"></div>
+        </div>
+      </div>
+    </div>
+    <div class="hud-center">
+      <div id="hud-level" class="level-name">—</div>
+      <div class="hud-stats">
+        <div class="stat" id="stat-cans" title="Latas"><span id="cans-icon" class="ico"></span><span id="hud-cans">0</span></div>
+        <div class="stat" title="Oleada"><span class="lbl">Oleada</span><span id="hud-wave">0/0</span></div>
+      </div>
+    </div>
+    <div class="hud-right">
+      <button id="btn-pause" class="btn ghost small" title="Pausa (P)">❚❚</button>
+      <div class="speed" id="speed" title="Velocidad (+ / −)">
+        <button data-speed="1" class="active">×1</button>
+        <button data-speed="2">×2</button>
+        <button data-speed="3">×3</button>
+      </div>
+      <button id="btn-sound" class="btn ghost small" title="Sonido (M)">♪ Sonido</button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <div id="canvas-wrap">
+      <canvas id="game" width="768" height="528"></canvas>
+      <div id="toasts"></div>
+    </div>
+    <aside id="sidebar">
+      <section class="panel" id="shop">
+        <h3 id="shop-title">Gatos</h3>
+        <div id="shop-cards" class="cards"></div>
+        <p class="hint">Elige una unidad y toca una casilla libre junto al camino. Clic derecho o Esc para cancelar.</p>
+      </section>
+
+      <section class="panel hidden" id="tower-panel">
+        <div class="tp-head">
+          <canvas id="tp-avatar" width="56" height="56"></canvas>
+          <div><div id="tp-name" class="tp-name"></div><div id="tp-type" class="tp-type"></div></div>
+        </div>
+        <div id="tp-stats" class="tp-stats"></div>
+        <label class="field"><span>Prioridad</span>
+          <select id="tp-targeting">
+            <option value="first">Más adelantado</option>
+            <option value="last">Más atrasado</option>
+            <option value="strong">Más fuerte</option>
+            <option value="near">Más cercano</option>
+          </select>
+        </label>
+        <div class="tp-actions">
+          <button id="btn-upgrade" class="btn primary">Mejorar</button>
+          <button id="btn-sell" class="btn danger">Vender</button>
+        </div>
+        <p id="tp-record" class="hint"></p>
+      </section>
+
+      <section class="panel" id="wave-panel">
+        <h3 id="wave-title">Próxima oleada</h3>
+        <div id="wave-preview" class="preview"></div>
+        <p id="wave-text" class="wave-text"></p>
+        <div id="countdown" class="countdown"><div id="countdown-fill"></div></div>
+        <button id="btn-wave" class="btn primary big">Iniciar oleada</button>
+      </section>
+    </aside>
+  </main>
+
+  <div id="overlay" class="overlay hidden"></div>
+</div>
+
+<!-- Núcleo -->
+<script src="js/util.js"></script>
+<script src="js/registry.js"></script>
+<!-- Contenido -->
+<script src="js/data/factions.js"></script>
+<script src="js/data/enemies.js"></script>
+<script src="js/data/towers.js"></script>
+<!-- Niveles: para agregar uno, copia js/levels/_plantilla.js y súmalo aquí -->
+<script src="js/levels/01-jardin-olvidado.js"></script>
+<script src="js/levels/02-autopista-rota.js"></script>
+<script src="js/levels/03-gran-despensa.js"></script>
+<script src="js/levels/11-terraplen.js"></script>
+<script src="js/levels/12-alcantarillas.js"></script>
+<script src="js/levels/13-tejado-del-templo.js"></script>
+<!-- Motor -->
+<script src="js/map.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/game.js"></script>
+<script src="js/campaign.js"></script>
+<script src="js/art.js"></script>
+<script src="js/render.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
