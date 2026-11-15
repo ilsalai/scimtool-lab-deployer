@@ -94,7 +94,9 @@
       for (let i = 1; i < raw.length - 1; i++) {
         const a = points[points.length - 1], b = raw[i], c = raw[i + 1];
         const collinear = (b.x - a.x) * (c.y - b.y) === (b.y - a.y) * (c.x - b.x);
-        if (!collinear) points.push(b);
+        // Solo se descarta si b queda ENTRE a y c; un tramo de ida y vuelta conserva su punto de giro.
+        const sameDir = (b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y) > 0;
+        if (!(collinear && sameDir)) points.push(b);
       }
       if (raw.length > 1) points.push(raw[raw.length - 1]);
       const cum = [0];

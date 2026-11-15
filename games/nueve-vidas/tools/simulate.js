@@ -20,7 +20,7 @@ const { dist } = TD.util;
 const args = process.argv.slice(2);
 const seedsIdx = args.indexOf('--seeds');
 const seeds = seedsIdx >= 0 ? Number(args[seedsIdx + 1]) || 3 : 3;
-const onlyLevel = args.find((a, i) => !a.startsWith('--') && i !== seedsIdx + 1);
+const onlyLevel = args.find((a, i) => !a.startsWith('--') && (seedsIdx < 0 || i !== seedsIdx + 1));
 const listOnly = args.includes('--list');
 
 if (listOnly) {

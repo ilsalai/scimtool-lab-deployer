@@ -209,7 +209,9 @@ p { margin: 0 0 10px; }
   #canvas-wrap { flex: none; min-height: 0; }
   #sidebar { width: auto; border-left: none; border-top: 1px solid var(--line); overflow: visible; }
   .cards { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
-  .hud-center { display: none; }
+  .hud-center .level-name { display: none; }
+  .hud-left .chip-name { display: none; }
+  #hud { gap: 6px; padding: 6px 8px; }
   .two-col, .stats-grid { grid-template-columns: 1fr 1fr; }
   .title { font-size: 34px; }
   .title-row canvas { display: none; }

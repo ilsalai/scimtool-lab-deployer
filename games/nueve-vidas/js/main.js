@@ -19,7 +19,14 @@
     ov.classList.remove('hidden');
     ov.innerHTML = `<section class="screen"><h2>Hay un problema en el contenido del juego</h2>
       <p class="lead">${String(err && err.message ? err.message : err).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</p>
-      <p class="hint">Revisa el archivo del nivel o de la unidad que acabas de tocar. El mapa debe tener filas del mismo largo, una sola E, al menos una S y un camino de # que las una.</p></section>`;
+      <p class="hint">Revisa el archivo del nivel o de la unidad que acabas de tocar. El mapa debe tener filas del mismo largo, una sola E, al menos una S y un camino de # que las una.</p>
+      <p class="hint">Si el problema viene de una partida guardada dañada, puedes borrarla y empezar de cero.</p>
+      <div class="btn-row"><button class="btn danger" id="fatal-reset">Borrar partida guardada y recargar</button></div></section>`;
+    const btn = document.getElementById('fatal-reset');
+    if (btn) btn.addEventListener('click', () => {
+      try { localStorage.removeItem(TD.Campaign ? TD.Campaign.KEY : 'nueveVidas.campaign.v1'); } catch (e) { /* sin almacenamiento */ }
+      location.reload();
+    });
   }
 
   window.addEventListener('DOMContentLoaded', () => {

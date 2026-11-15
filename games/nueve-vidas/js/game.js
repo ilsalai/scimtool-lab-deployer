@@ -82,7 +82,7 @@
 
     spawnEnemy(id, pathIndex = 0, startDist = 0) {
       const def = TD.enemies[id];
-      if (!def) throw new Error(`No existe el roedor "${id}"`);
+      if (!def) throw new Error(`No existe el enemigo "${id}"`);
       const e = new TD.Enemy(this, def, pathIndex, startDist);
       this.enemies.push(e);
       this.emit('spawn', e);
@@ -96,6 +96,9 @@
 
     /* ------------------------------------------------------------- bucle */
     update(dt) {
+      // Los efectos envejecen siempre: si no, al terminar la partida quedan congelados en pantalla.
+      for (const fx of this.effects) fx.age += dt;
+      this.effects = this.effects.filter((fx) => fx.age < fx.life);
       if (this.finished) return;
       this.time += dt;
 
@@ -121,15 +124,15 @@
       for (const t of this.towers) t.update(dt);
       // Los invocados se agregan al final de la lista; el bucle con índice los procesa en el siguiente tick.
       const n = this.enemies.length;
-      for (let i = 0; i < n; i++) this.enemies[i].update(dt);
-      if (this.finished) return;
+      for (let i = 0; i < n; i++) {
+        this.enemies[i].update(dt);
+        if (this.finished) break; // la novena cayó: nadie más se mueve este tick
+      }
       this.enemies = this.enemies.filter((e) => e.alive);
+      if (this.finished) return;
 
       for (const p of this.projectiles) p.update(dt);
       this.projectiles = this.projectiles.filter((p) => !p.done);
-
-      for (const fx of this.effects) fx.age += dt;
-      this.effects = this.effects.filter((fx) => fx.age < fx.life);
 
       if (this.state === 'wave' && !this.nextWave && !this.spawnQueue.length && !this.enemies.length) {
         this.state = 'victory';
@@ -147,8 +150,10 @@
     }
 
     onLeak(e) {
+      if (this.finished) return;
       const before = this.lives;
-      this.lives = Math.max(0, this.lives - e.def.lives);
+      const cost = Number.isFinite(e.def.lives) ? e.def.lives : 1;
+      this.lives = Math.max(0, this.lives - cost);
       this.stats.leaked++;
       const lost = before - this.lives;
       const word = lost === 1 ? this.faction.livesWord : this.faction.livesPlural;
@@ -167,10 +172,10 @@
 
     buildReason(def, c, r) {
       if (this.finished) return 'La partida terminó';
-      if (!this.availableTowers.includes(def)) return 'Ese gato no está disponible aquí';
+      if (!this.availableTowers.includes(def)) return 'Esa unidad no está disponible aquí';
       if (!this.map.isBuildable(c, r)) return 'Ahí no se puede construir';
-      if (this.towerAt(c, r)) return 'Ya hay un gato en esa casilla';
-      if (this.cans < def.cost) return `Faltan ${def.cost - this.cans} latas`;
+      if (this.towerAt(c, r)) return `Ya hay un ${this.faction.unitWord || 'defensor'} en esa casilla`;
+      if (this.cans < def.cost) return `Faltan ${def.cost - this.cans} ${this.faction.currency || 'latas'}`;
       return null;
     }
     canBuild(def, c, r) { return this.buildReason(def, c, r) === null; }
@@ -188,7 +193,7 @@
     }
 
     upgrade(t) {
-      if (this.finished || !t.canUpgrade || this.cans < t.upgradeCost) return false;
+      if (this.finished || !t.canUpgrade || !Number.isFinite(t.upgradeCost) || this.cans < t.upgradeCost) return false;
       this.cans -= t.upgradeCost;
       this.stats.spent += t.upgradeCost;
       t.upgrade();
@@ -229,6 +234,11 @@
         const edef = TD.enemies[grp.enemy];
         if (!edef) throw new Error(`Nivel "${level.id}", oleada ${i + 1}: el enemigo "${grp.enemy}" no existe`);
         if (edef.faction === level.faction) throw new Error(`Nivel "${level.id}", oleada ${i + 1}: "${grp.enemy}" es de tu propio bando (${level.faction})`);
+        if (edef.summon) {
+          const sdef = TD.enemies[edef.summon.enemy];
+          if (!sdef) throw new Error(`El enemigo "${grp.enemy}" invoca a "${edef.summon.enemy}", que no existe`);
+          if (sdef.faction === level.faction) throw new Error(`El enemigo "${grp.enemy}" invoca a "${edef.summon.enemy}", que es del bando del jugador`);
+        }
         if (!map.paths[grp.path]) throw new Error(`Nivel "${level.id}", oleada ${i + 1}: el camino ${grp.path} no existe (hay ${map.paths.length})`);
         return grp;
       });

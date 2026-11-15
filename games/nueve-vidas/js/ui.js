@@ -39,9 +39,17 @@
       if (this.campaign.data.faction !== level.faction) {
         this.campaign.data.faction = level.faction;
         this.campaign.data.character = this.campaign.makeCharacter(level.faction);
+        this.campaign.data.lives = 9;
         this.campaign.save();
       }
       this.showIntro(level);
+    }
+
+    /** Suelta la partida en curso (o terminada) y limpia selección y colocación. */
+    dropGame() {
+      this.placing = null; this.selected = null; this.hover = null; this.touchTile = null;
+      this.game = null; this.renderer = null;
+      this.refreshTowerPanel();
     }
 
     setFactionClass(f) { document.getElementById('app').className = 'faction-' + f; }
@@ -55,19 +63,38 @@
         const m = this.game.map;
         this.hover = p.c >= 0 && p.r >= 0 && p.c < m.cols && p.r < m.rows ? { c: p.c, r: p.r } : null;
       });
-      cv.addEventListener('pointerleave', () => { this.hover = null; });
+      cv.addEventListener('pointerleave', (e) => {
+        // En táctil el dedo "sale" al levantarlo: se conserva la casilla para mostrar el alcance.
+        if (e.pointerType === 'touch' && this.placing) return;
+        this.hover = null;
+      });
       cv.addEventListener('pointerdown', (e) => {
         if (!this.game || this.screen) return;
         TD.audio.unlock();
         if (e.button === 2) { this.cancelPlacing(); return; }
         const p = this.renderer.pointFromEvent(e);
         this.hover = { c: p.c, r: p.r };
+        // Táctil: el primer toque muestra dónde y con qué alcance; el segundo sobre la misma casilla coloca.
+        if (e.pointerType === 'touch' && this.placing) {
+          const same = this.touchTile && this.touchTile.c === p.c && this.touchTile.r === p.r;
+          if (!same) { this.touchTile = { c: p.c, r: p.r }; return; }
+        }
+        this.touchTile = null;
         this.clickTile(p.c, p.r);
       });
       cv.addEventListener('contextmenu', (e) => e.preventDefault());
       document.addEventListener('pointerdown', () => TD.audio.unlock(), { capture: true });
       window.addEventListener('resize', () => this.fitCanvas());
       document.addEventListener('keydown', (e) => this.onKey(e));
+      // Otra pestaña guardó la campaña: se relee para no pisar sus cambios con una copia vieja.
+      window.addEventListener('storage', (e) => {
+        if (e.key !== TD.Campaign.KEY) return;
+        this.campaign.load();
+        if (this.game && !this.game.finished && this.campaign.exists) {
+          this.game.lives = Math.min(this.game.lives, this.campaign.lives);
+        } else if (this.screen === 'menu') this.showMenu();
+        else if (this.screen === 'levels') this.showLevels();
+      });
 
       $('#btn-menu').addEventListener('click', () => this.togglePause());
       $('#btn-pause').addEventListener('click', () => this.togglePause());
@@ -75,9 +102,12 @@
       this.refreshSoundButton(TD.audio.enabled);
       for (const b of document.querySelectorAll('#speed button')) b.addEventListener('click', () => this.setSpeed(Number(b.dataset.speed)));
       $('#btn-wave').addEventListener('click', () => this.startWave());
-      $('#btn-upgrade').addEventListener('click', () => { if (!this.selected || !this.game.upgrade(this.selected)) TD.audio.play('error'); });
-      $('#btn-sell').addEventListener('click', () => { if (this.selected) this.game.sell(this.selected); });
-      $('#tp-targeting').addEventListener('change', (e) => { if (this.selected) this.selected.targeting = e.target.value; });
+      $('#btn-upgrade').addEventListener('click', () => { if (!this.game || !this.selected || !this.game.upgrade(this.selected)) TD.audio.play('error'); });
+      $('#btn-sell').addEventListener('click', () => { if (this.game && this.selected) this.game.sell(this.selected); });
+      $('#tp-targeting').addEventListener('change', (e) => {
+        if (this.selected) this.selected.targeting = e.target.value;
+        e.target.blur(); // si conserva el foco, se come los atajos de teclado
+      });
       $('#overlay').addEventListener('click', (e) => {
         const b = e.target.closest('[data-action]');
         if (!b) return;
@@ -87,8 +117,11 @@
     }
 
     onKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return; // atajos del navegador (zoom, pestañas, imprimir)
       if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
       const k = e.key;
+      if (k === 'm' || k === 'M') { this.refreshSoundButton(TD.audio.toggle()); return; }
+      if (k === 'p' || k === 'P') { if (!this.screen || this.screen === 'pause') this.togglePause(); return; }
       if (k === 'Escape') {
         if (this.screen === 'pause') { this.hideOverlay(); return; }
         if (this.screen) return;
@@ -100,8 +133,6 @@
         const def = this.game.availableTowers.find((t) => t.hotkey === k) || this.game.availableTowers[Number(k) - 1];
         if (def) this.setPlacing(this.placing === def ? null : def);
       } else if (k === ' ') { e.preventDefault(); this.startWave(); }
-      else if (k === 'p' || k === 'P') this.togglePause();
-      else if (k === 'm' || k === 'M') this.refreshSoundButton(TD.audio.toggle());
       else if (k === 'u' || k === 'U') { if (this.selected && !this.game.upgrade(this.selected)) TD.audio.play('error'); }
       else if (k === 'x' || k === 'X' || k === 'Delete') { if (this.selected) this.game.sell(this.selected); }
       else if (k === '+' || k === '=') this.setSpeed(Math.min(3, this.speed + 1));
@@ -112,19 +143,19 @@
       switch (name) {
         case 'new-game': { const r = this.campaign.newGame(); this.setFactionClass('gatos'); this.showBorn({ character: r.character, text: r.text, first: true }); break; }
         case 'confirm-reset': this.showConfirmReset(); break;
-        case 'reset': this.campaign.reset(); this.game = null; this.renderer = null; this.showMenu(); break;
-        case 'menu': this.showMenu(); break;
-        case 'levels': this.showLevels(); break;
+        case 'reset': this.campaign.reset(); this.dropGame(); this.showMenu(); break;
+        case 'menu': if (this.game && this.game.finished) this.dropGame(); this.showMenu(); break;
+        case 'levels': if (this.game && this.game.finished) this.dropGame(); this.showLevels(); break;
         case 'chronicle': this.showChronicle(); break;
         case 'help': this.showHelp(); break;
         case 'intro': { const lv = TD.levels.find((l) => l.id === data.level); if (lv) this.showIntro(lv); break; }
         case 'play': { const lv = TD.levels.find((l) => l.id === data.level); if (lv) this.startLevel(lv); break; }
         case 'resume': this.hideOverlay(); break;
         case 'restart': if (this.level) this.startLevel(this.level); break;
-        case 'quit': this.game = null; this.renderer = null; this.showLevels(); break;
+        case 'quit': this.dropGame(); this.showLevels(); break;
         case 'wheel': {
-          const info = this.campaign.turnWheel(data.reason || 'death');
-          this.game = null; this.renderer = null;
+          const info = this.campaign.turnWheel(data.reason || 'death', this.level ? this.level.name : null);
+          this.dropGame();
           TD.audio.play('wheel');
           this.showBorn(info);
           break;
@@ -136,6 +167,7 @@
           this.campaign.data.character = this.campaign.makeCharacter(f);
           this.campaign.data.lives = 9;
           this.campaign.save();
+          this.dropGame();
           this.showLevels();
           break;
         }
@@ -150,10 +182,20 @@
       ov.classList.remove('hidden');
       ov.innerHTML = `<section class="screen screen-${name}">${html}</section>`;
       ov.scrollTop = 0;
+      // Con una pantalla abierta, el HUD y el tablero no reciben foco ni clics.
+      $('#hud').inert = true; $('#stage').inert = true;
       this.paintAll(ov);
+      const first = ov.querySelector('button:not(:disabled)');
+      if (first) first.focus({ preventScroll: true });
       return ov.firstElementChild;
     }
-    hideOverlay() { this.screen = null; const ov = $('#overlay'); ov.classList.add('hidden'); ov.innerHTML = ''; }
+    hideOverlay() {
+      this.screen = null;
+      const ov = $('#overlay');
+      ov.classList.add('hidden');
+      ov.innerHTML = '';
+      $('#hud').inert = false; $('#stage').inert = false;
+    }
 
     paintAll(root = document) {
       for (const cv of root.querySelectorAll('canvas.avatar[data-look]')) {
@@ -184,8 +226,11 @@
 
     showMenu() {
       const c = this.campaign;
+      this.setFactionClass(c.exists ? c.data.faction : 'gatos');
       // Si se cerró el juego con la novena perdida, la Rueda tiene que girar antes de seguir.
       if (c.exists && c.lives <= 0) return this.showWheel();
+      // Y si se cerró justo al ganar la guerra, primero se cuenta.
+      if (c.exists && c.warPending()) return this.showWar();
       const body = c.exists
         ? `${this.characterCard()}
           <div class="btn-row">
@@ -220,6 +265,7 @@
       const c = this.campaign;
       if (!c.exists) return this.showMenu();
       if (c.lives <= 0) return this.showWheel();
+      if (c.warPending()) return this.showWar();
       const f = c.faction;
       this.setFactionClass(f.id);
       const levels = TD.levelsOf(f.id);
@@ -241,11 +287,14 @@
         <div class="level-grid">${cards}</div>
         ${levels.length ? '' : '<p class="hint">Este bando todavía no tiene niveles. Crea uno en js/levels/ (mira _plantilla.js).</p>'}
         <p class="hint">${cap(f.livesPlural)} que no se recuperan entre niveles: cada enemigo que llega a ${esc(f.base)} gasta una. A la novena, la Rueda gira.</p>
+        ${c.isWarWon(f.id) ? `<div class="btn-row"><button class="btn" data-action="wheel" data-reason="choice" title="Empiezas una vida nueva en el otro bando, con nueve oportunidades">Dejar que la Rueda gire</button></div>
+        <p class="hint">${esc(cap(f.clan))} ya ganó su guerra. Puedes seguir patrullando o dejar que la Rueda gire y vivir del otro lado.</p>` : ''}
         ${this.dev ? '<div class="btn-row"><button class="btn ghost" data-action="switch-dev">[dev] Cambiar de bando</button></div>' : ''}`);
     }
 
     showIntro(lv) {
       const f = TD.factions[lv.faction], c = this.campaign;
+      if (c.exists && c.lives <= 0) return this.showWheel();
       this.setFactionClass(lv.faction);
       const units = (lv.towers || TD.towerOrder.filter((id) => TD.towers[id].faction === lv.faction)).map((id) => TD.towers[id]).filter(Boolean)
         .map((t) => `<div class="unit-chip" title="${esc(t.desc)}"><canvas class="avatar" width="52" height="52" data-look="${t.look}" data-base="${t.base}"></canvas><span>${esc(t.name)}</span></div>`).join('');
@@ -328,6 +377,8 @@
 
     showWar() {
       const f = this.campaign.faction, ch = this.campaign.character;
+      this.campaign.markWarShown();
+      if (this.game && this.game.finished) this.dropGame();
       this.setScreen('war', `
         <div class="kicker">${esc(f.campaignTitle)}</div>
         <h2>${esc(cap(f.clan))} gana la guerra</h2>
@@ -368,7 +419,9 @@
 
     /* -------------------------------------------------------- la partida */
     startLevel(level) {
+      if (this.campaign.exists && this.campaign.lives <= 0) return this.showWheel();
       this.level = level;
+      this.touchTile = null;
       this.setFactionClass(level.faction);
       this.game = new TD.Game(level, { onEvent: (t, p, g) => this.handleEvent(t, p, g), lives: this.campaign.lives });
       this.renderer = new TD.Renderer(this.canvas, this.game);
@@ -395,7 +448,9 @@
       if (!this.renderer) return;
       const wrap = $('#canvas-wrap');
       const w = wrap.clientWidth - 16, h = wrap.clientHeight - 16;
-      this.renderer.fit(Math.max(200, w), h > 160 ? h : 1e9);
+      // En columna (pantallas estrechas) el alto del contenedor lo da el propio canvas: solo manda el ancho.
+      const column = getComputedStyle($('#stage')).flexDirection === 'column';
+      this.renderer.fit(Math.max(200, w), !column && h > 160 ? h : 1e9);
     }
 
     togglePause() {
@@ -414,6 +469,7 @@
 
     setPlacing(def) {
       this.placing = def || null;
+      this.touchTile = null;
       if (def) this.select(null);
       this.refreshShop();
       this.canvas.style.cursor = def ? 'copy' : 'crosshair';
@@ -594,7 +650,7 @@
       const g = this.game;
       this.cancelPlacing();
       const lost = this.livesAtLevelStart - g.lives;
-      this.campaign.setLives(g.lives);
+      // Las vidas ya se guardaron una a una al perderlas (loseLives); aquí no se pisan.
       const res = this.campaign.completeLevel(this.level, lost);
       setTimeout(() => { if (this.game === g) this.showResult(res); }, 1300);
     }
@@ -612,6 +668,7 @@
       const dt = Math.min(0.05, Math.max(0, (ts - this.lastTs) / 1000) || 0);
       this.lastTs = ts;
       if (!this.game || !this.renderer) return;
+      if (this.screen && this.game.finished) return; // partida terminada detrás de un menú: no se redibuja
       if (!this.screen) for (let i = 0; i < this.speed; i++) this.game.update(dt);
       this.renderer.draw(dt * (this.screen ? 0 : this.speed), { hover: this.hover, placing: this.placing, selected: this.selected });
       this.updateHUD();

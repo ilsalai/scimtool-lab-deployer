@@ -100,8 +100,15 @@ for (let i = 0; i < 400 && !(await page.evaluate(() => TD.ui.game.finished)); i+
 }
 const end = await page.evaluate(() => ({ state: TD.ui.game.state, lives: TD.ui.game.lives, wave: TD.ui.game.currentWaveNumber, towers: TD.ui.game.towers.length }));
 console.log('final roedores:', JSON.stringify(end));
-await page.waitForTimeout(1800);
+await page.waitForTimeout(2200);
 await page.screenshot({ path: path.join(out, '10-end.png') });
+// Según cómo terminó: si cayó la novena, la Rueda tiene que girar antes de volver al menú.
+if (await page.locator('.screen-wheel').count()) {
+  await page.click('[data-action="wheel"]');
+  await page.waitForSelector('.screen-born');
+  await page.click('[data-action="levels"]');
+  await page.waitForSelector('.screen-levels');
+}
 await page.evaluate(() => TD.ui.action('menu'));
 await page.waitForSelector('.screen-menu');
 await page.click('[data-action="chronicle"]');

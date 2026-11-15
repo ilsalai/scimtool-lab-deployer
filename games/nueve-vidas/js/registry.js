@@ -21,6 +21,14 @@
   TD.registerEnemy = function (def) {
     if (!def || !def.id) throw new Error('registerEnemy: el enemigo necesita un id');
     if (!def.faction) throw new Error(`registerEnemy: "${def.id}" necesita "faction" (a qué bando pertenece)`);
+    for (const k of ['hp', 'speed']) {
+      if (!(Number.isFinite(def[k]) && def[k] > 0)) throw new Error(`registerEnemy: "${def.id}" necesita "${k}" (un número mayor que 0)`);
+    }
+    // Valores por defecto seguros: sin ellos las vidas o la moneda acabarían en NaN.
+    if (!Number.isFinite(def.lives)) def.lives = 1;
+    if (!Number.isFinite(def.reward)) def.reward = 0;
+    if (!Number.isFinite(def.armor)) def.armor = 0;
+    if (!Number.isFinite(def.radius)) def.radius = 0.3;
     TD.enemies[def.id] = def;
     return def;
   };
@@ -31,6 +39,13 @@
     if (!Array.isArray(def.levels) || !def.levels.length) {
       throw new Error(`registerTower: "${def.id}" necesita al menos un nivel en "levels"`);
     }
+    if (!Number.isFinite(def.cost)) throw new Error(`registerTower: "${def.id}" necesita "cost" (precio)`);
+    def.levels.forEach((l, i) => {
+      for (const k of ['damage', 'range', 'rate']) {
+        if (!Number.isFinite(l[k]) || (k !== 'damage' && l[k] <= 0)) throw new Error(`registerTower: "${def.id}", nivel ${i + 1}: falta "${k}" o no es un número válido`);
+      }
+      if (i > 0 && !Number.isFinite(l.cost)) throw new Error(`registerTower: "${def.id}", nivel ${i + 1}: falta "cost" (precio de la mejora)`);
+    });
     TD.towers[def.id] = def;
     if (!TD.towerOrder.includes(def.id)) TD.towerOrder.push(def.id);
     return def;
@@ -44,8 +59,12 @@
     if (!Array.isArray(def.waves) || !def.waves.length) {
       throw new Error(`registerLevel: el nivel "${def.id}" necesita al menos una oleada en "waves"`);
     }
-    // Si no se indica "order", los niveles quedan en el orden en que se cargan.
-    if (def.order == null) def.order = TD.levels.length + 1;
+    // Sin "order", el nivel va al final de la campaña de su bando (o al final de todo si es el primero).
+    if (def.order == null) {
+      const mine = TD.levels.filter((l) => l.faction === def.faction);
+      const pool = mine.length ? mine : TD.levels;
+      def.order = pool.reduce((m, l) => Math.max(m, l.order), 0) + 1;
+    }
     TD.levels.push(def);
     TD.levels.sort((a, b) => a.order - b.order);
     return def;

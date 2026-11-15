@@ -43,14 +43,19 @@
     /** Distancia que le falta hasta la Despensa, en píxeles. */
     get remaining() { return this.path.length - this.dist; }
     get radiusPx() { return this.def.radius * TILE; }
-    get isSlowed() { return !!(this.slow && this.slow.until > this.game.time); }
+    get isSlowed() { return !!this._activeSlow(); }
+
+    /** Frenado vigente. Cuando el principal expira, entra el de respaldo (más débil pero más largo). */
+    _activeSlow() {
+      const now = this.game.time;
+      while (this.slow && this.slow.until <= now) this.slow = this.slow.next || null;
+      return this.slow;
+    }
 
     speedNow() {
       let s = this.def.speed * TILE;
-      if (this.slow) {
-        if (this.slow.until > this.game.time) s *= 1 - this.slow.factor;
-        else this.slow = null;
-      }
+      const sl = this._activeSlow();
+      if (sl) s *= 1 - sl.factor;
       return s;
     }
 
@@ -112,10 +117,15 @@
 
     applySlow(factor, duration) {
       const until = this.game.time + duration;
-      if (!this.slow || this.slow.until <= this.game.time || factor > this.slow.factor) {
-        this.slow = { factor, until };
-      } else if (factor === this.slow.factor) {
-        this.slow.until = Math.max(this.slow.until, until);
+      const cur = this._activeSlow();
+      if (!cur || factor > cur.factor) {
+        // Manda el nuevo; el anterior queda de respaldo si dura más.
+        this.slow = { factor, until, next: cur && cur.until > until ? { factor: cur.factor, until: cur.until, next: null } : null };
+      } else if (factor === cur.factor) {
+        cur.until = Math.max(cur.until, until);
+      } else if (until > cur.until && (!cur.next || factor >= cur.next.factor)) {
+        // Más débil pero más duradero: entra cuando el fuerte expire.
+        cur.next = { factor, until, next: null };
       }
     }
   }
@@ -264,13 +274,13 @@
       const opts = { pierce: this.pierce, source: this.tower };
       if (this.splash > 0) {
         for (const e of this.game.enemies) {
-          if (!e.targetable) continue;
+          if (!this.tower.canSee(e)) continue;
           if (dist(e.x, e.y, this.tx, this.ty) <= this.splash + e.radiusPx) e.takeDamage(this.damage, opts);
         }
-        this.game.addEffect({ type: 'splash', x: this.tx, y: this.ty, radius: this.splash, life: 0.45 });
+        this.game.addEffect({ type: 'splash', x: this.tx, y: this.ty, radius: this.splash, life: 0.45, kind: this.kind });
         this.game.emit('splash', this);
       } else {
-        if (this.target && this.target.targetable) this.target.takeDamage(this.damage, opts);
+        if (this.target && this.tower.canSee(this.target)) this.target.takeDamage(this.damage, opts);
         this.game.addEffect({ type: 'hit', x: this.tx, y: this.ty, life: 0.15 });
       }
     }
