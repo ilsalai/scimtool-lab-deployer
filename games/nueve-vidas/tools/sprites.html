@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Nueve Vidas · hoja de sprites</title>
+<style>
+  body { margin: 0; padding: 16px; background: #2a3a2e; color: #eef2e6; font: 13px system-ui, sans-serif; }
+  h2 { margin: 18px 0 8px; font-size: 15px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  figure { margin: 0; text-align: center; background: #5f8f52; border-radius: 6px; padding: 4px; }
+  figure.dark { background: #3a4a4a; }
+  figcaption { font-size: 11px; color: #eef2e6; }
+  canvas { image-rendering: pixelated; display: block; margin: 0 auto; }
+</style>
+</head>
+<body>
+<h1>Hoja de sprites</h1>
+<p>Todos los sprites se generan por código (js/sprites.js). Aquí se ven ampliados para revisar el arte. Añade <code>?z=6</code> a la URL para cambiar el aumento.</p>
+<div id="out"></div>
+<script src="../js/util.js"></script>
+<script src="../js/pixel.js"></script>
+<script src="../js/sprites.js"></script>
+<script>
+  const Z = Number((location.search.match(/z=(\d+)/) || [])[1]) || 4;
+  const S = TD.sprites, out = document.getElementById('out');
+  function section(title) {
+    const h = document.createElement('h2'); h.textContent = title; out.appendChild(h);
+    const r = document.createElement('div'); r.className = 'row'; out.appendChild(r);
+    return r;
+  }
+  function show(row, px, label, dark) {
+    const b = px.bbox();
+    const src = px.toCanvas();
+    const cv = document.createElement('canvas');
+    cv.width = (b.w + 2) * Z; cv.height = (b.h + 2) * Z;
+    const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(src, b.x - 1, b.y - 1, b.w + 2, b.h + 2, 0, 0, cv.width, cv.height);
+    const fig = document.createElement('figure'); if (dark) fig.className = 'dark';
+    fig.appendChild(cv);
+    const cap = document.createElement('figcaption'); cap.textContent = label; fig.appendChild(cap);
+    row.appendChild(fig);
+  }
+  const cats = Object.keys(S.SPECIES).filter((k) => S.SPECIES[k].kind === 'cat');
+  const rods = Object.keys(S.SPECIES).filter((k) => S.SPECIES[k].kind === 'rodent');
+  let r = section('Gatos sentados (reposo y ataque)');
+  for (const k of cats) { show(r, S.sit(k, {}), k); show(r, S.sit(k, { attack: true, mouth: true, sway: 1 }), k + ' atk'); }
+  r = section('Roedores sentados (reposo y ataque)');
+  for (const k of rods) { show(r, S.sit(k, {}), k); show(r, S.sit(k, { attack: true, mouth: true, sway: 1 }), k + ' atk'); }
+  r = section('Gatos caminando');
+  for (const k of cats) for (let f = 0; f < 4; f += (k === 'tabby' ? 1 : 2)) show(r, S.walk(k, f), k + ' ' + f);
+  r = section('Roedores caminando');
+  for (const k of rods) for (let f = 0; f < 4; f += (k === 'mouse' ? 1 : 2)) show(r, S.walk(k, f), k + ' ' + f);
+  r = section('Asientos y proyectiles');
+  for (const k of ['post', 'rock', 'stump', 'mound', 'tallrock', 'catapult']) show(r, S.base(k, 0).px, k);
+  show(r, S.base('catapult', 1).px, 'catapult 1');
+  for (const k of ['piedra', 'bellota', 'nuez', 'dardo', 'sardina']) show(r, S.projectile(k), k);
+  r = section('Escenario');
+  for (const t of ['verde', 'oliva', 'dorado', 'interior']) show(r, S.tree(3, t), 'árbol ' + t);
+  show(r, S.tree(9, 'verde'), 'árbol b'); show(r, S.rubble(1), 'escombros'); show(r, S.car(1), 'auto'); show(r, S.car(5), 'auto b');
+  show(r, S.lamp(1).px, 'farol'); show(r, S.antenna(1).px, 'antena'); show(r, S.pipe(), 'tubería', true); show(r, S.chimney(), 'chimenea');
+  show(r, S.spawn('burrow'), 'madriguera'); show(r, S.spawn('breach'), 'brecha');
+  show(r, S.exit('despensa', '#f1a53c'), 'Despensa'); show(r, S.exit('granero', '#9bd36b'), 'Granero');
+  show(r, S.mound(0), 'montículo');
+</script>
+</body>
+</html>

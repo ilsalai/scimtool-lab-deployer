@@ -199,6 +199,15 @@ Useful when you're reproducing a customer's Entra ID provisioning issue:
 
 ---
 
+## Extras: Nueve Vidas (juego)
+
+Este repositorio también aloja **[Nueve Vidas](games/nueve-vidas/README.md)**, un tower defense de
+gatos y roedores en una tierra que evolucionó sin humanos. Es un sitio estático sin dependencias:
+abre `games/nueve-vidas/index.html` y juega. Cómo agregar niveles, unidades y enemigos está en su
+README; el diseño y la historia, en `games/nueve-vidas/DISEÑO.md`.
+
+---
+
 ## Reporting issues with this wrapper
 
 [github.com/ilsalai/scimtool-lab-deployer/issues](https://github.com/ilsalai/scimtool-lab-deployer/issues) — include:

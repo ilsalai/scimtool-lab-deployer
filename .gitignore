@@ -22,3 +22,6 @@ SCIMTool-Credentials-*.txt
 
 # Installers
 *.msi
+
+# Juegos (games/)
+games/nueve-vidas/tools/smoke-out/

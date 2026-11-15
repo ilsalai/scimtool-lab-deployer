@@ -1,0 +1,299 @@
+/* Nueve Vidas · estado y reglas del juego.
+ * No toca el DOM ni el canvas: emite eventos (onEvent) que la interfaz y el
+ * audio interpretan. Así la misma clase sirve para simular partidas en Node. */
+(function () {
+  const TD = (globalThis.TD = globalThis.TD || {});
+  const TILE = TD.TILE;
+
+  class Game {
+    constructor(level, opts = {}) {
+      this.level = level;
+      this.onEvent = opts.onEvent || (() => {});
+      this.rng = opts.rng || Math.random;
+      this.map = new TD.GameMap(level);
+      this.waves = normalizeWaves(level, this.map);
+      // Eco: una vida pasada del jugador, del bando que ahora ataca, vuelve como enemigo con nombre.
+      this.echo = null;
+      if (opts.echo) this.addEcho(opts.echo);
+      this.availableTowers = (level.towers || TD.towerOrder.filter((id) => TD.towers[id].faction === level.faction)).map((id) => {
+        const def = TD.towers[id];
+        if (!def) throw new Error(`Nivel "${level.id}": la unidad "${id}" no existe`);
+        if (def.faction !== level.faction) throw new Error(`Nivel "${level.id}": la unidad "${id}" es de ${def.faction}, no de ${level.faction}`);
+        return def;
+      });
+
+      this.faction = TD.factions[level.faction];
+      if (!this.faction) throw new Error(`Nivel "${level.id}": la facción "${level.faction}" no existe`);
+      this.cans = level.startCans ?? 150;
+      // Las vidas son del personaje, no del nivel: la campaña las pasa en opts.lives.
+      this.maxLives = 9;
+      this.lives = opts.lives ?? level.lives ?? 9;
+      this.livesAtStart = this.lives;
+      this.hpMult = level.hpMult ?? 1;
+      this.countdownTotal = level.countdown ?? 25;
+
+      this.state = 'build'; // build | wave | countdown | victory | defeat
+      this.waveIndex = -1;  // última oleada lanzada
+      this.spawnQueue = [];
+      this.waveClock = 0;
+      this.countdown = 0;
+      this.time = 0;
+      this.nextId = 1;
+
+      this.enemies = [];
+      this.towers = [];
+      this.projectiles = [];
+      this.effects = [];
+      this.stats = { kills: 0, leaked: 0, spent: 0, earned: 0, bonus: 0, stolen: 0, recovered: 0, escaped: 0, thieves: 0 };
+    }
+
+    /** Agrega a una oleada avanzada el eco de una vida pasada: { name, look }. */
+    addEcho(echo) {
+      const id = Object.keys(TD.enemies).find((k) => TD.enemies[k].echoTemplate && TD.enemies[k].faction !== this.level.faction);
+      if (!id || this.waves.length < 2) return;
+      const wi = Math.min(this.waves.length - 1, Math.max(1, Math.round(this.waves.length * 0.6) - 1));
+      const wave = this.waves[wi];
+      const extra = { look: echo.look, label: `Eco de ${echo.name}`, echo: { name: echo.name, look: echo.look } };
+      wave.groups.push({ enemy: id, count: 1, interval: 1, delay: 3, path: Math.floor(this.rng() * this.map.paths.length), extra });
+      wave.total++;
+      this.echo = { ...echo, wave: wi + 1 };
+    }
+
+    get totalWaves() { return this.waves.length; }
+    get currentWaveNumber() { return this.waveIndex + 1; }
+    get nextWave() { return this.waves[this.waveIndex + 1] || null; }
+    get finished() { return this.state === 'victory' || this.state === 'defeat'; }
+    get canStartWave() { return !!this.nextWave && (this.state === 'build' || this.state === 'countdown'); }
+
+    emit(type, payload) { this.onEvent(type, payload, this); }
+
+    /* ----------------------------------------------------------- oleadas */
+    startNextWave(early = false) {
+      if (!this.canStartWave) return false;
+      if (early && this.state === 'countdown') {
+        const bonus = Math.ceil(this.countdown);
+        if (bonus > 0) {
+          this.cans += bonus;
+          this.stats.bonus += bonus;
+          this.stats.earned += bonus;
+          this.emit('bonus', bonus);
+        }
+      }
+      this.waveIndex++;
+      const wave = this.waves[this.waveIndex];
+      this.spawnQueue = [];
+      for (const g of wave.groups) {
+        for (let i = 0; i < g.count; i++) {
+          this.spawnQueue.push({ t: g.delay + i * g.interval, enemy: g.enemy, path: g.path, extra: g.extra || null });
+        }
+      }
+      this.spawnQueue.sort((a, b) => a.t - b.t);
+      this.waveClock = 0;
+      this.countdown = 0;
+      this.state = 'wave';
+      this.emit('waveStart', wave);
+      return true;
+    }
+
+    spawnEnemy(id, pathIndex = 0, startDist = 0, extra = null) {
+      const def = TD.enemies[id];
+      if (!def) throw new Error(`No existe el enemigo "${id}"`);
+      const e = new TD.Enemy(this, def, pathIndex, startDist, extra);
+      // El eco pesa según el nivel: más duro cuanto más avanzada la campaña.
+      if (def.echoTemplate) { const k = 1 + 0.45 * ((this.level.difficulty || 1) - 1); e.maxHp *= k; e.hp = e.maxHp; }
+      this.enemies.push(e);
+      this.emit('spawn', e);
+      return e;
+    }
+
+    waveBonus(waveNumber) {
+      const base = this.level.waveBonus ?? 12;
+      return base + 4 * waveNumber;
+    }
+
+    /* ------------------------------------------------------------- bucle */
+    update(dt) {
+      // Los efectos envejecen siempre: si no, al terminar la partida quedan congelados en pantalla.
+      for (const fx of this.effects) fx.age += dt;
+      this.effects = this.effects.filter((fx) => fx.age < fx.life);
+      if (this.finished) return;
+      this.time += dt;
+
+      if (this.state === 'wave') {
+        this.waveClock += dt;
+        while (this.spawnQueue.length && this.spawnQueue[0].t <= this.waveClock) {
+          const s = this.spawnQueue.shift();
+          this.spawnEnemy(s.enemy, s.path, 0, s.extra);
+        }
+        if (!this.spawnQueue.length && this.nextWave) {
+          const bonus = this.waveBonus(this.currentWaveNumber);
+          this.cans += bonus;
+          this.stats.earned += bonus;
+          this.state = 'countdown';
+          this.countdown = this.countdownTotal;
+          this.emit('waveClear', { wave: this.waves[this.waveIndex], bonus });
+        }
+      } else if (this.state === 'countdown') {
+        this.countdown -= dt;
+        if (this.countdown <= 0) this.startNextWave(false);
+      }
+
+      for (const t of this.towers) t.update(dt);
+      // Los invocados se agregan al final de la lista; el bucle con índice los procesa en el siguiente tick.
+      const n = this.enemies.length;
+      for (let i = 0; i < n; i++) {
+        this.enemies[i].update(dt);
+        if (this.finished) break; // la novena cayó: nadie más se mueve este tick
+      }
+      this.enemies = this.enemies.filter((e) => e.alive);
+      if (this.finished) return;
+
+      for (const p of this.projectiles) p.update(dt);
+      this.projectiles = this.projectiles.filter((p) => !p.done);
+
+      if (this.state === 'wave' && !this.nextWave && !this.spawnQueue.length && !this.enemies.length) {
+        this.state = 'victory';
+        this.emit('victory', this.stats);
+      }
+    }
+
+    onKill(e, source) {
+      this.cans += e.def.reward;
+      this.stats.kills++;
+      this.stats.earned += e.def.reward;
+      this.addEffect({ type: 'text', text: `+${e.def.reward}`, x: e.x, y: e.y - e.radiusPx, color: '#f1c74c', life: 0.9 });
+      this.addEffect({ type: 'puff', x: e.x, y: e.y, radius: e.radiusPx, life: 0.5, boss: !!e.def.boss });
+      if (e.carried > 0) {
+        // Cazado con el botín encima: lo robado vuelve.
+        this.cans += e.carried;
+        this.stats.recovered += e.carried;
+        this.addEffect({ type: 'text', text: `+${e.carried} recuperadas`, x: e.x, y: e.y - e.radiusPx - 12, color: '#ffe27a', life: 1.3, big: true });
+        this.addEffect({ type: 'coins', x: e.x, y: e.y, life: 0.6 });
+        this.emit('recover', { enemy: e, amount: e.carried });
+      }
+      this.emit('kill', e);
+      if (e.echo) this.emit('echoKill', e);
+      if (e.def.boss) this.emit('bossKill', e);
+    }
+
+    /** Un ladrón llegó a la base: roba y da media vuelta. No gasta vidas. */
+    onSteal(e) {
+      if (this.finished) return;
+      const amount = Math.max(0, Math.min(this.cans, e.def.steals));
+      this.cans -= amount;
+      e.carried = amount;
+      this.stats.stolen += amount;
+      this.stats.thieves++;
+      const txt = amount > 0 ? `-${amount} ${this.faction.currency}` : '¡nada que robar!';
+      this.addEffect({ type: 'text', text: txt, x: e.x, y: e.y - 22, color: '#ffb24a', life: 1.3, big: true });
+      if (amount > 0) this.addEffect({ type: 'coins', x: e.x, y: e.y, life: 0.6 });
+      this.emit('steal', { enemy: e, amount });
+    }
+
+    /** Un ladrón salió del mapa con lo que llevaba. */
+    onEscape(e) {
+      this.stats.escaped += e.carried;
+      if (e.carried > 0) this.addEffect({ type: 'text', text: `se llevó ${e.carried}`, x: e.x, y: e.y - 18, color: '#ff8a5a', life: 1.2 });
+      this.emit('escape', { enemy: e, amount: e.carried });
+    }
+
+    onLeak(e) {
+      if (this.finished) return;
+      const before = this.lives;
+      const cost = Number.isFinite(e.def.lives) ? e.def.lives : 1;
+      this.lives = Math.max(0, this.lives - cost);
+      this.stats.leaked++;
+      const lost = before - this.lives;
+      const word = lost === 1 ? this.faction.livesWord : this.faction.livesPlural;
+      this.addEffect({ type: 'text', text: `-${lost} ${word}`, x: e.x, y: e.y - 20, color: '#ff6b6b', life: 1.2 });
+      this.addEffect({ type: 'leak', x: e.x, y: e.y, life: 0.6 });
+      // "lost" vidas perdidas ahora; "remaining" las que quedan. La interfaz narra cada una.
+      this.emit('leak', { enemy: e, lost, remaining: this.lives, echo: e.echo });
+      if (this.lives <= 0) {
+        this.state = 'defeat';
+        this.emit('defeat', this.stats);
+      }
+    }
+
+    /* ------------------------------------------------------ construcción */
+    towerAt(c, r) { return this.towers.find((t) => t.c === c && t.r === r) || null; }
+
+    buildReason(def, c, r) {
+      if (this.finished) return 'La partida terminó';
+      if (!this.availableTowers.includes(def)) return 'Esa unidad no está disponible aquí';
+      if (!this.map.isBuildable(c, r)) return 'Ahí no se puede construir';
+      if (this.towerAt(c, r)) return `Ya hay un ${this.faction.unitWord || 'defensor'} en esa casilla`;
+      if (this.cans < def.cost) return `Faltan ${def.cost - this.cans} ${this.faction.currency || 'latas'}`;
+      return null;
+    }
+    canBuild(def, c, r) { return this.buildReason(def, c, r) === null; }
+
+    build(id, c, r) {
+      const def = typeof id === 'string' ? TD.towers[id] : id;
+      if (!def || !this.canBuild(def, c, r)) return null;
+      this.cans -= def.cost;
+      this.stats.spent += def.cost;
+      const t = new TD.Tower(this, def, c, r);
+      this.towers.push(t);
+      this.addEffect({ type: 'puff', x: t.x, y: t.y + 10, radius: 14, life: 0.4, color: 'rgba(255,255,255,0.5)' });
+      this.emit('build', t);
+      return t;
+    }
+
+    upgrade(t) {
+      if (this.finished || !t.canUpgrade || !Number.isFinite(t.upgradeCost) || this.cans < t.upgradeCost) return false;
+      this.cans -= t.upgradeCost;
+      this.stats.spent += t.upgradeCost;
+      t.upgrade();
+      this.addEffect({ type: 'ring', x: t.x, y: t.y, radius: TILE * 0.9, color: 'rgba(241,199,76,0.9)', life: 0.5 });
+      this.emit('upgrade', t);
+      return true;
+    }
+
+    sell(t) {
+      if (this.finished) return false;
+      const i = this.towers.indexOf(t);
+      if (i < 0) return false;
+      this.towers.splice(i, 1);
+      this.cans += t.sellValue;
+      this.addEffect({ type: 'text', text: `+${t.sellValue}`, x: t.x, y: t.y - 20, color: '#f1c74c', life: 0.9 });
+      this.emit('sell', t);
+      return true;
+    }
+
+    addEffect(fx) {
+      fx.age = 0;
+      if (fx.life == null) fx.life = 0.5;
+      this.effects.push(fx);
+      return fx;
+    }
+  }
+
+  /** Acepta oleadas como lista de grupos o como {text, groups} y las valida. */
+  function normalizeWaves(level, map) {
+    return level.waves.map((w, i) => {
+      const wave = Array.isArray(w) ? { groups: w } : { ...w };
+      wave.index = i;
+      if (!Array.isArray(wave.groups) || !wave.groups.length) {
+        throw new Error(`Nivel "${level.id}": la oleada ${i + 1} no tiene grupos`);
+      }
+      wave.groups = wave.groups.map((g) => {
+        const grp = { enemy: g.enemy, count: g.count ?? 1, interval: g.interval ?? 1, delay: g.delay ?? 0, path: g.path ?? 0, extra: g.extra || null };
+        const edef = TD.enemies[grp.enemy];
+        if (!edef) throw new Error(`Nivel "${level.id}", oleada ${i + 1}: el enemigo "${grp.enemy}" no existe`);
+        if (edef.faction === level.faction) throw new Error(`Nivel "${level.id}", oleada ${i + 1}: "${grp.enemy}" es de tu propio bando (${level.faction})`);
+        if (edef.summon) {
+          const sdef = TD.enemies[edef.summon.enemy];
+          if (!sdef) throw new Error(`El enemigo "${grp.enemy}" invoca a "${edef.summon.enemy}", que no existe`);
+          if (sdef.faction === level.faction) throw new Error(`El enemigo "${grp.enemy}" invoca a "${edef.summon.enemy}", que es del bando del jugador`);
+        }
+        if (!map.paths[grp.path]) throw new Error(`Nivel "${level.id}", oleada ${i + 1}: el camino ${grp.path} no existe (hay ${map.paths.length})`);
+        return grp;
+      });
+      wave.total = wave.groups.reduce((s, g) => s + g.count, 0);
+      return wave;
+    });
+  }
+
+  TD.Game = Game;
+})();
