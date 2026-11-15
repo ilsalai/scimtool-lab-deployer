@@ -123,10 +123,12 @@
       this.save();
     }
 
-    /** Marca un nivel como ganado. Devuelve { stars, warWon, firstWar }. */
-    completeLevel(level, livesLost) {
+    /** Marca un nivel como ganado. Devuelve { stars, warWon, firstWar }.
+     *  loot: { stolen, escaped } si hubo ladrones. Tres estrellas exigen no perder oportunidades ni botín. */
+    completeLevel(level, livesLost, loot = null) {
       const lost = Number.isFinite(livesLost) ? livesLost : 0;
-      const stars = lost === 0 ? 3 : lost <= 2 ? 2 : 1;
+      const escaped = loot && Number.isFinite(loot.escaped) ? loot.escaped : 0;
+      const stars = lost === 0 && escaped === 0 ? 3 : lost <= 2 ? 2 : 1;
       const p = this.data.progress[level.faction];
       const prev = p[level.id];
       p[level.id] = {
@@ -139,7 +141,13 @@
       const how = lost === 0
         ? ` sin perder ni ${f.livesWord === 'vida' ? 'una' : 'un'} ${f.livesWord}`
         : ` perdiendo ${lost} ${lost === 1 ? f.livesWord : f.livesPlural}`;
-      this.log('win', `${this.character.name} defendió ${level.name}${how}.`, { level: level.name, stars });
+      let lootLine = '';
+      if (loot && loot.stolen > 0) {
+        lootLine = escaped > 0
+          ? ` Los ladrones se llevaron ${escaped} ${f.currency}.`
+          : ` Los ladrones no se llevaron nada: todo lo robado volvió.`;
+      }
+      this.log('win', `${this.character.name} defendió ${level.name}${how}.${lootLine}`, { level: level.name, stars });
       this.save();
       // La guerra se celebra cuando el jugador VE la pantalla (markWarShown), no aquí:
       // así cerrar el juego en el resultado no la pierde.
@@ -182,6 +190,13 @@
     nextLevel(level) {
       const levels = TD.levelsOf(level.faction);
       return levels[levels.indexOf(level) + 1] || null;
+    }
+
+    /** Eco para un nivel: la vida pasada más reciente del jugador en el bando que ahora ataca. */
+    echoFor(level) {
+      const f = TD.factions[level.faction];
+      const past = f ? this.pastOf(f.enemy)[0] : null;
+      return past ? { name: past.name, look: past.look } : null;
     }
 
     /** Encarnaciones pasadas del bando indicado, de la más reciente a la más antigua. */

@@ -118,6 +118,9 @@ function play(level, strat, seed) {
     cans: game.cans,
     time: Math.round(game.time),
     kills: game.stats.kills,
+    stolen: game.stats.stolen,
+    recovered: game.stats.recovered,
+    escaped: game.stats.escaped,
   };
 }
 
@@ -133,6 +136,8 @@ for (const level of levels) {
     const avgLives = (runs.reduce((s, r) => s + r.lives, 0) / runs.length).toFixed(1);
     const waves = runs.map((r) => (r.result === 'victory' ? '✓' : `✗o${r.wave}`)).join(' ');
     const r0 = runs[0];
-    console.log(`  ${name.padEnd(12)} victorias ${wins}/${runs.length} · vidas prom ${avgLives} · [${waves}] · gatos ${r0.towers} · invertido ${r0.invested} · sobran ${r0.cans} · ${r0.time}s`);
+    const avg = (k) => Math.round(runs.reduce((s, r) => s + r[k], 0) / runs.length);
+    const loot = runs.some((r) => r.stolen) ? ` · robado ${avg('stolen')} / recuperado ${avg('recovered')} / perdido ${avg('escaped')}` : '';
+    console.log(`  ${name.padEnd(12)} victorias ${wins}/${runs.length} · vidas prom ${avgLives} · [${waves}] · unidades ${r0.towers} · invertido ${r0.invested} · sobran ${r0.cans} · ${r0.time}s${loot}`);
   }
 }

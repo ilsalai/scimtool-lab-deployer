@@ -12,6 +12,9 @@
       this.rng = opts.rng || Math.random;
       this.map = new TD.GameMap(level);
       this.waves = normalizeWaves(level, this.map);
+      // Eco: una vida pasada del jugador, del bando que ahora ataca, vuelve como enemigo con nombre.
+      this.echo = null;
+      if (opts.echo) this.addEcho(opts.echo);
       this.availableTowers = (level.towers || TD.towerOrder.filter((id) => TD.towers[id].faction === level.faction)).map((id) => {
         const def = TD.towers[id];
         if (!def) throw new Error(`Nivel "${level.id}": la unidad "${id}" no existe`);
@@ -41,7 +44,19 @@
       this.towers = [];
       this.projectiles = [];
       this.effects = [];
-      this.stats = { kills: 0, leaked: 0, spent: 0, earned: 0, bonus: 0 };
+      this.stats = { kills: 0, leaked: 0, spent: 0, earned: 0, bonus: 0, stolen: 0, recovered: 0, escaped: 0, thieves: 0 };
+    }
+
+    /** Agrega a una oleada avanzada el eco de una vida pasada: { name, look }. */
+    addEcho(echo) {
+      const id = Object.keys(TD.enemies).find((k) => TD.enemies[k].echoTemplate && TD.enemies[k].faction !== this.level.faction);
+      if (!id || this.waves.length < 2) return;
+      const wi = Math.min(this.waves.length - 1, Math.max(1, Math.round(this.waves.length * 0.6) - 1));
+      const wave = this.waves[wi];
+      const extra = { look: echo.look, label: `Eco de ${echo.name}`, echo: { name: echo.name, look: echo.look } };
+      wave.groups.push({ enemy: id, count: 1, interval: 1, delay: 3, path: Math.floor(this.rng() * this.map.paths.length), extra });
+      wave.total++;
+      this.echo = { ...echo, wave: wi + 1 };
     }
 
     get totalWaves() { return this.waves.length; }
@@ -69,7 +84,7 @@
       this.spawnQueue = [];
       for (const g of wave.groups) {
         for (let i = 0; i < g.count; i++) {
-          this.spawnQueue.push({ t: g.delay + i * g.interval, enemy: g.enemy, path: g.path });
+          this.spawnQueue.push({ t: g.delay + i * g.interval, enemy: g.enemy, path: g.path, extra: g.extra || null });
         }
       }
       this.spawnQueue.sort((a, b) => a.t - b.t);
@@ -80,10 +95,12 @@
       return true;
     }
 
-    spawnEnemy(id, pathIndex = 0, startDist = 0) {
+    spawnEnemy(id, pathIndex = 0, startDist = 0, extra = null) {
       const def = TD.enemies[id];
       if (!def) throw new Error(`No existe el enemigo "${id}"`);
-      const e = new TD.Enemy(this, def, pathIndex, startDist);
+      const e = new TD.Enemy(this, def, pathIndex, startDist, extra);
+      // El eco pesa según el nivel: más duro cuanto más avanzada la campaña.
+      if (def.echoTemplate) { const k = 1 + 0.45 * ((this.level.difficulty || 1) - 1); e.maxHp *= k; e.hp = e.maxHp; }
       this.enemies.push(e);
       this.emit('spawn', e);
       return e;
@@ -106,7 +123,7 @@
         this.waveClock += dt;
         while (this.spawnQueue.length && this.spawnQueue[0].t <= this.waveClock) {
           const s = this.spawnQueue.shift();
-          this.spawnEnemy(s.enemy, s.path, 0);
+          this.spawnEnemy(s.enemy, s.path, 0, s.extra);
         }
         if (!this.spawnQueue.length && this.nextWave) {
           const bonus = this.waveBonus(this.currentWaveNumber);
@@ -146,7 +163,38 @@
       this.stats.earned += e.def.reward;
       this.addEffect({ type: 'text', text: `+${e.def.reward}`, x: e.x, y: e.y - e.radiusPx, color: '#f1c74c', life: 0.9 });
       this.addEffect({ type: 'puff', x: e.x, y: e.y, radius: e.radiusPx, life: 0.5, boss: !!e.def.boss });
+      if (e.carried > 0) {
+        // Cazado con el botín encima: lo robado vuelve.
+        this.cans += e.carried;
+        this.stats.recovered += e.carried;
+        this.addEffect({ type: 'text', text: `+${e.carried} recuperadas`, x: e.x, y: e.y - e.radiusPx - 12, color: '#ffe27a', life: 1.3, big: true });
+        this.addEffect({ type: 'coins', x: e.x, y: e.y, life: 0.6 });
+        this.emit('recover', { enemy: e, amount: e.carried });
+      }
       this.emit('kill', e);
+      if (e.echo) this.emit('echoKill', e);
+      if (e.def.boss) this.emit('bossKill', e);
+    }
+
+    /** Un ladrón llegó a la base: roba y da media vuelta. No gasta vidas. */
+    onSteal(e) {
+      if (this.finished) return;
+      const amount = Math.max(0, Math.min(this.cans, e.def.steals));
+      this.cans -= amount;
+      e.carried = amount;
+      this.stats.stolen += amount;
+      this.stats.thieves++;
+      const txt = amount > 0 ? `-${amount} ${this.faction.currency}` : '¡nada que robar!';
+      this.addEffect({ type: 'text', text: txt, x: e.x, y: e.y - 22, color: '#ffb24a', life: 1.3, big: true });
+      if (amount > 0) this.addEffect({ type: 'coins', x: e.x, y: e.y, life: 0.6 });
+      this.emit('steal', { enemy: e, amount });
+    }
+
+    /** Un ladrón salió del mapa con lo que llevaba. */
+    onEscape(e) {
+      this.stats.escaped += e.carried;
+      if (e.carried > 0) this.addEffect({ type: 'text', text: `se llevó ${e.carried}`, x: e.x, y: e.y - 18, color: '#ff8a5a', life: 1.2 });
+      this.emit('escape', { enemy: e, amount: e.carried });
     }
 
     onLeak(e) {
@@ -160,7 +208,7 @@
       this.addEffect({ type: 'text', text: `-${lost} ${word}`, x: e.x, y: e.y - 20, color: '#ff6b6b', life: 1.2 });
       this.addEffect({ type: 'leak', x: e.x, y: e.y, life: 0.6 });
       // "lost" vidas perdidas ahora; "remaining" las que quedan. La interfaz narra cada una.
-      this.emit('leak', { enemy: e, lost, remaining: this.lives });
+      this.emit('leak', { enemy: e, lost, remaining: this.lives, echo: e.echo });
       if (this.lives <= 0) {
         this.state = 'defeat';
         this.emit('defeat', this.stats);
@@ -230,7 +278,7 @@
         throw new Error(`Nivel "${level.id}": la oleada ${i + 1} no tiene grupos`);
       }
       wave.groups = wave.groups.map((g) => {
-        const grp = { enemy: g.enemy, count: g.count ?? 1, interval: g.interval ?? 1, delay: g.delay ?? 0, path: g.path ?? 0 };
+        const grp = { enemy: g.enemy, count: g.count ?? 1, interval: g.interval ?? 1, delay: g.delay ?? 0, path: g.path ?? 0, extra: g.extra || null };
         const edef = TD.enemies[grp.enemy];
         if (!edef) throw new Error(`Nivel "${level.id}", oleada ${i + 1}: el enemigo "${grp.enemy}" no existe`);
         if (edef.faction === level.faction) throw new Error(`Nivel "${level.id}", oleada ${i + 1}: "${grp.enemy}" es de tu propio bando (${level.faction})`);

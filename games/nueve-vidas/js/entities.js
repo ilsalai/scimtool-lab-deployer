@@ -15,9 +15,18 @@
 
   /* ------------------------------------------------------------------ Roedor */
   class Enemy {
-    constructor(game, def, pathIndex, startDist = 0) {
+    /** extra: { look, label, echo } permite que un enemigo concreto tenga aspecto y nombre propios (los ecos). */
+    constructor(game, def, pathIndex, startDist = 0, extra = null) {
       this.game = game;
       this.def = def;
+      this.look = (extra && extra.look) || def.look;
+      this.label = (extra && extra.label) || null;
+      this.echo = (extra && extra.echo) || null;
+      // Ladrones: al llegar a la base no gastan vidas; roban y vuelven por donde vinieron.
+      this.returning = false;
+      this.escaped = false;
+      this.carried = 0;
+      this.walked = 0;
       this.id = game.nextId++;
       this.pathIndex = pathIndex;
       this.path = game.map.paths[pathIndex];
@@ -37,11 +46,13 @@
       this._updatePos();
     }
 
-    get alive() { return !this.dead && !this.leaked; }
+    get alive() { return !this.dead && !this.leaked && !this.escaped; }
+    get carrying() { return this.carried > 0; }
+    get isThief() { return this.def.steals != null; }
     /** Se le puede apuntar (vivo y a la vista). */
     get targetable() { return this.alive && !this.hidden; }
-    /** Distancia que le falta hasta la Despensa, en píxeles. */
-    get remaining() { return this.path.length - this.dist; }
+    /** Distancia que le falta para hacer daño, en píxeles: hasta la base, o hasta escapar si vuelve con botín. */
+    get remaining() { return this.returning ? this.dist : this.path.length - this.dist; }
     get radiusPx() { return this.def.radius * TILE; }
     get isSlowed() { return !!this._activeSlow(); }
 
@@ -53,7 +64,7 @@
     }
 
     speedNow() {
-      let s = this.def.speed * TILE;
+      let s = (this.returning && this.def.speedLoaded ? this.def.speedLoaded : this.def.speed) * TILE;
       const sl = this._activeSlow();
       if (sl) s *= 1 - sl.factor;
       return s;
@@ -84,8 +95,30 @@
         }
       }
 
-      this.dist += this.speedNow() * dt;
+      const step = this.speedNow() * dt;
+      this.walked += step;
+      if (this.returning) {
+        // Vuelve con el botín hacia la entrada.
+        this.dist -= step;
+        if (this.dist <= 0) {
+          this.dist = 0;
+          this.escaped = true;
+          this._updatePos();
+          this.game.onEscape(this);
+          return;
+        }
+        this._updatePos();
+        return;
+      }
+      this.dist += step;
       if (this.dist >= this.path.length) {
+        if (this.isThief) {
+          this.dist = this.path.length;
+          this.returning = true;
+          this._updatePos();
+          this.game.onSteal(this);
+          return;
+        }
         this.leaked = true;
         this._updatePos();
         this.game.onLeak(this);
@@ -96,7 +129,10 @@
 
     _updatePos() {
       const p = this.game.map.posAt(this.path, this.dist);
-      this.x = p.x; this.y = p.y; this.dx = p.dx; this.dy = p.dy;
+      this.x = p.x; this.y = p.y;
+      // Al volver mira hacia la salida.
+      this.dx = this.returning ? -p.dx : p.dx;
+      this.dy = this.returning ? -p.dy : p.dy;
     }
 
     /** Aplica daño teniendo en cuenta la armadura. Devuelve el daño real. */
@@ -188,6 +224,8 @@
         if (!this.canSee(e) || !this.inRange(e)) continue;
         let score;
         switch (this.targeting) {
+          // Ladrones primero: los que ya llevan botín (el más cerca de escapar), luego los que vienen a robar.
+          case 'loot': score = (e.carrying ? -2e6 : e.isThief ? -1e6 : 0) + e.remaining; break;
           case 'last': score = -e.remaining; break;
           case 'strong': score = -e.hp * 1000 + e.remaining; break;
           case 'near': score = dist(this.x, this.y, e.x, e.y); break;

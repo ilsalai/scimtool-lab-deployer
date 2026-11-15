@@ -13,6 +13,8 @@ TD.registerLevel({
     'por las cornisas pueden pasar... y los negros se funden con la oscuridad: solo las púas ' +
     'del Puercoespín los sienten. El túnel es largo y da tres vueltas: una unidad entre dos ' +
     'pasillos trabaja el doble.',
+  outro:
+    'Al fondo del túnel alguien rascó la pared hace mucho: marcas de garra, de a cuatro, demasiado altas para un gato. Nadie en la Colonia quiso decir de qué eran.',
   startCans: 230,
   countdown: 25,
   towers: ['hondera', 'puas', 'silbadora', 'bombardero'],

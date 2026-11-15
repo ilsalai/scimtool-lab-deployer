@@ -13,6 +13,8 @@ TD.registerLevel({
     'vez no mandan callejeros: viene Ojos de Ámbar, la Reina Lince, llamando a los suyos a su ' +
     'paso. Si ella cruza, no hay milagro que valga. El Jerbo ya está disponible: su espina ' +
     'atraviesa cualquier pelaje.',
+  outro:
+    'Ojos de Ámbar cayó frente a la claraboya. Antes de apagarse te miró sin odio: «Yo también fui pequeña y corrí». Esa noche soñaste que saltabas un muro de un solo impulso.',
   startCans: 320,
   countdown: 25,
   towers: ['hondera', 'puas', 'silbadora', 'bombardero', 'jerbo'],

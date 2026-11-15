@@ -13,7 +13,7 @@
     lock: '<svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zm2 0h6V8a3 3 0 0 0-6 0z"/></svg>',
   };
   const ROLE_LABEL = { basic: 'Tirador', melee: 'Cuerpo a cuerpo', control: 'Control', splash: 'Daño en área', sniper: 'Francotirador' };
-  const CHRON_ICON = { born: '✦', death: '✕', ninth: '☠', win: '★', war: '♛', wheel: '↻' };
+  const CHRON_ICON = { born: '✦', death: '✕', ninth: '☠', win: '★', war: '♛', wheel: '↻', echo: '◈', boss: '♜' };
 
   class UI {
     constructor() {
@@ -313,6 +313,7 @@
           <div><h4>Tus ${esc(f.unitsWord.toLowerCase())}</h4><div class="chips">${units}</div></div>
           <div><h4>Qué viene</h4><div class="chips">${enemies}</div></div>
         </div>
+        ${(() => { const echo = c.exists ? c.echoFor(lv) : null; return echo ? `<p class="echo-note"><canvas class="avatar" width="48" height="36" data-look="${echo.look}" data-pose="walk"></canvas><span>Entre ellos viene alguien que conoces: <b>el eco de ${esc(echo.name)}</b>. Fuiste tú, en otra vida.</span></p>` : ''; })()}
         <p class="hint">${lv.waves.length} oleadas · ${c.lives} ${c.lives === 1 ? f.livesWord : f.livesPlural} en juego · empiezas con ${lv.startCans ?? 150} ${f.currency}</p>
         <div class="btn-row"><button class="btn primary big" data-action="play" data-level="${lv.id}">¡A defender!</button><button class="btn ghost" data-action="levels">Volver</button></div>`);
     }
@@ -349,6 +350,8 @@
           <div><b>${g.stats.earned}</b><span>${esc(f.currency)} ganadas</span></div>
           <div><b>${g.towers.length}</b><span>${esc(f.unitsWord.toLowerCase())} en el campo</span></div>
         </div>
+        ${g.stats.stolen > 0 ? `<p class="loot-line">${esc(cap(f.currency))} robadas <b>${g.stats.stolen}</b> · recuperadas <b>${g.stats.recovered}</b> · perdidas <b>${g.stats.escaped}</b></p>` : ''}
+        ${lv.outro ? `<p class="outro">${esc(lv.outro)}</p>` : ''}
         ${this.characterCard()}
         <div class="btn-row">${buttons}</div>`);
     }
@@ -420,7 +423,9 @@
           <p><b>Nueve oportunidades.</b> Un gato tiene nueve vidas; un roedor, nueve escapes milagrosos. Cada enemigo que llega a la base gasta una, y no se recuperan entre niveles. A la novena, la Rueda gira: el otro bando gana la guerra y despiertas como un personaje nuevo... del otro lado, con nueve oportunidades frescas.</p>
           <p><b>Economía.</b> Cada baja deja latas (o semillas). Completar una oleada da un bono, y adelantar la siguiente antes de que termine la cuenta regresiva da uno extra.</p>
           <p><b>Unidades.</b> Cada bando tiene cinco: un tirador barato, un luchador cuerpo a cuerpo que detecta enemigos ocultos y rompe armaduras, uno de control que frena en área, uno de daño en área contra enjambres y un francotirador que ignora cualquier pellejo. Se mejoran dos veces y se pueden vender por el 70 %.</p>
-          <p><b>Prioridad.</b> Al seleccionar una unidad puedes elegir a quién apunta: al más adelantado, al más atrasado, al más fuerte o al más cercano.</p>
+          <p><b>Prioridad.</b> Al seleccionar una unidad puedes elegir a quién apunta: al más adelantado, al más atrasado, al más fuerte, al más cercano o a los ladrones primero.</p>
+          <p><b>Ladrones.</b> Desde el capítulo 4 algunos enemigos no gastan oportunidades: llegan a tu base, roban 30 latas o semillas y vuelven por donde entraron, más lentos, con el saco a cuestas. Si los cazas antes de que salgan, lo robado vuelve. La entrada pasa a ser tu última línea.</p>
+          <p><b>Ecos.</b> Cuando ya viviste en el otro bando, tu vida anterior aparece una vez por nivel entre los enemigos, con su nombre. Es más dura que el resto. Derribarla queda escrito en la Crónica.</p>
           <p><b>Atajos.</b> 1-5 elegir unidad · clic colocar · clic derecho o Esc cancelar · Espacio enviar oleada · P pausa · U mejorar · X vender · M sonido · + / − velocidad.</p>
         </div>`);
     }
@@ -431,7 +436,8 @@
       this.level = level;
       this.touchTile = null;
       this.setFactionClass(level.faction);
-      this.game = new TD.Game(level, { onEvent: (t, p, g) => this.handleEvent(t, p, g), lives: this.campaign.lives });
+      this.game = new TD.Game(level, { onEvent: (t, p, g) => this.handleEvent(t, p, g), lives: this.campaign.lives, echo: this.campaign.echoFor(level) });
+      this.stealToastWave = -1; this.lastEscapeToast = 0;
       this.renderer = new TD.Renderer(this.canvas, this.game);
       this.placing = null; this.selected = null; this.hover = null;
       this.livesAtLevelStart = this.game.lives;
@@ -570,13 +576,16 @@
       $('#wave-title').textContent = nxt
         ? (g.state === 'build' ? `Primera oleada de ${g.totalWaves}` : `Próxima oleada: ${nxt.index + 1} de ${g.totalWaves}`)
         : `Última oleada (${g.totalWaves} de ${g.totalWaves})`;
-      const counts = {};
-      for (const grp of show.groups) counts[grp.enemy] = (counts[grp.enemy] || 0) + grp.count;
+      const counts = {}, echoes = [];
+      for (const grp of show.groups) {
+        if (grp.extra && grp.extra.echo) echoes.push(grp.extra);
+        else counts[grp.enemy] = (counts[grp.enemy] || 0) + grp.count;
+      }
       const prev = $('#wave-preview');
       prev.innerHTML = Object.entries(counts).map(([id, n]) => {
         const e = TD.enemies[id];
-        return `<div class="pv" title="${esc(e.name)}: ${esc(e.desc)}"><canvas class="avatar" width="48" height="36" data-look="${e.look}" data-pose="walk"></canvas><b>×${n}</b></div>`;
-      }).join('');
+        return `<div class="pv ${e.steals != null ? 'thief' : ''}" title="${esc(e.name)}: ${esc(e.desc)}"><canvas class="avatar" width="48" height="36" data-look="${e.look}" data-pose="walk"></canvas><b>×${n}</b></div>`;
+      }).join('') + echoes.map((x) => `<div class="pv echo" title="${esc(x.label)}: alguien que fuiste. Si cruza, te cuesta una oportunidad."><canvas class="avatar" width="48" height="36" data-look="${x.look}" data-pose="walk"></canvas><b>${esc(x.label)}</b></div>`).join('');
       this.paintAll(prev);
       $('#wave-text').textContent = show.text || '';
       this.refreshCountdown();
@@ -613,7 +622,7 @@
       t.className = `toast ${kind}`;
       t.textContent = text;
       box.appendChild(t);
-      while (box.children.length > 3) box.removeChild(box.firstChild);
+      while (box.children.length > 2) box.removeChild(box.firstChild);
       const life = ms || (kind === 'death' ? 5500 : kind === 'wave' ? 4000 : 2200);
       setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 350); }, life);
     }
@@ -637,16 +646,52 @@
         case 'waveStart': au.play('wave'); if (payload.text) this.toast(payload.text, 'wave'); this.refreshWavePanel(); break;
         case 'waveClear': this.toast(`Oleada ${payload.wave.index + 1} completa: +${payload.bonus} ${game.faction.currency}`, 'small'); this.refreshWavePanel(); break;
         case 'leak': this.onLeak(payload); break;
+        case 'steal': this.onSteal(payload); break;
+        case 'escape': this.onEscape(payload); break;
+        case 'recover': au.play('recover'); break;
+        case 'echoKill': {
+          const f = game.faction, text = f.echoKill(this.campaign.character.name, payload.echo.name);
+          this.toast(text, 'wave', 6500);
+          this.campaign.log('echo', text); this.campaign.save();
+          break;
+        }
+        case 'bossKill': {
+          const text = `${payload.def.name} cayó. ${payload.def.lastWords || ''}`.trim();
+          this.toast(text, 'wave', 6500);
+          this.campaign.log('boss', text); this.campaign.save();
+          break;
+        }
         case 'victory': this.onVictory(); break;
         case 'defeat': this.onDefeat(); break;
         default: break;
       }
     }
 
-    onLeak({ lost }) {
+    onSteal({ enemy, amount }) {
+      TD.audio.play(amount > 0 ? 'steal' : 'error');
+      const g = this.game, f = g.faction, d = enemy.def;
+      // Un aviso por oleada; el resto se lee en los textos que flotan sobre la base.
+      if (this.stealToastWave === g.waveIndex) return;
+      this.stealToastWave = g.waveIndex;
+      const who = `${cap(d.article || 'un')} ${d.name}`;
+      this.toast(amount > 0
+        ? `¡${who} se lleva ${amount} ${f.currency}! Que no ${f.exitPhrase}: si cae antes, lo robado vuelve.`
+        : `${who} llegó a ${f.base}... y no encontró nada que robar.`, 'wave', 4500);
+    }
+
+    onEscape({ amount }) {
+      if (amount <= 0) return;
+      TD.audio.play('leak');
+      const g = this.game, f = g.faction;
+      if (g.time - this.lastEscapeToast < 5) return;
+      this.lastEscapeToast = g.time;
+      this.toast(`Se escaparon con ${amount} ${f.currency}. ${f.escapedPhrase}`, 'small', 3200);
+    }
+
+    onLeak({ lost, echo }) {
       TD.audio.play('leak');
       const f = this.campaign.faction;
-      const entries = this.campaign.loseLives(lost, this.level.name);
+      const entries = this.campaign.loseLives(lost, this.level.name, echo ? f.echoLeak(echo.name) : null);
       for (const en of entries) {
         if (en.ninth) continue; // la novena tiene pantalla propia
         this.toast(`${cap(f.livesWord)} ${en.k} de 9 ${f.lostVerb}: «${en.text}»`, 'death');
@@ -659,7 +704,7 @@
       this.cancelPlacing();
       const lost = this.livesAtLevelStart - g.lives;
       // Las vidas ya se guardaron una a una al perderlas (loseLives); aquí no se pisan.
-      const res = this.campaign.completeLevel(this.level, lost);
+      const res = this.campaign.completeLevel(this.level, lost, { stolen: g.stats.stolen, escaped: g.stats.escaped });
       setTimeout(() => { if (this.game === g) this.showResult(res); }, 1300);
     }
 

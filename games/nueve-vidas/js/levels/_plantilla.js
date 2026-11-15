@@ -6,16 +6,17 @@
  * ============================================================================
  *
  *  MAPA (map): un string por fila, todas del mismo largo. Cada carácter es una casilla:
- *    .  pasto        → se puede construir
+ *    .  suelo del tema (pasto, trigo, piedra, tejas) → se puede construir
  *    :  hormigón     → se puede construir (ruinas humanas)
- *    #  camino       → por aquí avanzan los roedores
- *    S  madriguera   → de aquí salen los roedores (puede haber varias)
- *    E  Despensa     → lo que defiendes (solo una)
+ *    #  camino       → por aquí avanzan los enemigos
+ *    S  entrada      → de aquí salen los enemigos (puede haber varias)
+ *    E  base         → lo que defiendes: Despensa o Granero (solo una)
  *    ~  agua         → bloqueado
- *    T  árbol        → bloqueado
+ *    T  bloque del tema (árbol, tubería, chimenea, cajas, sacos) → bloqueado
  *    R  escombros    → bloqueado
  *    C  auto oxidado → bloqueado
- *    L  farol caído  → bloqueado
+ *    L  farol o antena → bloqueado; en los temas de noche da luz
+ *  Alrededor del mapa el juego pinta solo un margen decorativo con el escenario del tema.
  *  El camino se calcula solo: desde cada S hasta la E siguiendo las casillas #.
  *  Las S se numeran en orden de lectura (arriba→abajo, izquierda→derecha): la
  *  primera es el camino 0, la segunda el 1, etc. Eso es lo que usa el 5º
@@ -25,8 +26,9 @@
  *  { text: 'mensaje al empezar', groups: [...] }.
  *  TD.g(roedor, cantidad, segundosEntreCadaUno, retrasoInicial = 0, camino = 0)
  *  Enemigos (ver js/data/enemies.js):
- *    en niveles de gatos atacan roedores: raton, rata, ardilla, topo, capibara, reyrata
- *    en niveles de roedores atacan gatos: callejero, cazador, siames, sombra, peludo, reinalince
+ *    en niveles de gatos atacan roedores: raton, rata, ardilla, topo, capibara, listada (ladrona), reyrata
+ *    en niveles de roedores atacan gatos: callejero, cazador, siames, sombra, peludo, ratero (ladrón), reinalince
+ *    Los ladrones no gastan oportunidades: roban 30 y vuelven por donde entraron.
  *
  *  UNIDADES (towers): ids de las unidades que se pueden comprar en este nivel (ver js/data/towers.js).
  *    gatos: vigia, zarpas, maullador, lanzasardinas, lince
@@ -42,8 +44,9 @@ TD.registerLevel({
   name: 'Mi nivel',
   subtitle: 'Capítulo X',
   difficulty: 2,                  // 1 a 5 patitas, solo informativo
-  theme: 'jardin',                // 'jardin' | 'autopista' | 'despensa'
+  theme: 'jardin',                // jardin | autopista | despensa | campo | alcantarilla | tejado | patio | silo
   intro: 'Texto que se muestra antes de empezar. Cuenta la historia del lugar.',
+  outro: 'Texto opcional que se muestra al ganar. Dos o tres frases que siembren una pista.',
   startCans: 150,                 // latas iniciales
   countdown: 25,                  // segundos entre oleadas (se puede adelantar)
   towers: ['vigia', 'zarpas', 'maullador'],

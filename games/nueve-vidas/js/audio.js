@@ -43,6 +43,8 @@
     victory: (c, d, t) => [523, 659, 784, 1047].forEach((f, i) => tone(c, d, { type: 'triangle', f0: f, t0: t + i * 0.12, dur: 0.3, vol: 0.25 })),
     defeat: (c, d, t) => [392, 311, 233].forEach((f, i) => tone(c, d, { type: 'sawtooth', f0: f, f1: f * 0.97, t0: t + i * 0.25, dur: 0.45, vol: 0.2 })),
     wheel: (c, d, t) => [196, 247, 294, 392, 494].forEach((f, i) => tone(c, d, { type: 'sine', f0: f, t0: t + i * 0.18, dur: 0.6, vol: 0.22 })),
+    steal: (c, d, t) => [1175, 880, 660].forEach((f, i) => tone(c, d, { type: 'triangle', f0: f, t0: t + i * 0.07, dur: 0.12, vol: 0.2 })),
+    recover: (c, d, t) => [660, 880, 1175, 1568].forEach((f, i) => tone(c, d, { type: 'sine', f0: f, t0: t + i * 0.05, dur: 0.12, vol: 0.2 })),
     summon: (c, d, t) => tone(c, d, { type: 'square', f0: 200, f1: 400, t0: t, dur: 0.2, vol: 0.12 }),
     error: (c, d, t) => tone(c, d, { type: 'square', f0: 200, f1: 150, t0: t, dur: 0.1, vol: 0.12 }),
     click: (c, d, t) => tone(c, d, { type: 'sine', f0: 700, f1: 500, t0: t, dur: 0.04, vol: 0.1 }),

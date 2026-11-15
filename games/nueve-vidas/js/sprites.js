@@ -20,7 +20,7 @@
     alley:     { kind: 'cat', fur: '#907e6a', fur2: '#58483a', belly: '#d5c9b8', eye: '#cbdc3c', pattern: 'tabby', size: 0.9, label: 'gato callejero' },
     maine:     { kind: 'cat', fur: '#7a5532', fur2: '#432c19', belly: '#dfc9a9', eye: '#f5a93c', pattern: 'tabby', size: 1.34, fluffy: true, tufts: true, ruff: true, label: 'gato de pelo largo' },
     lynxqueen: { kind: 'cat', fur: '#d6ac62', fur2: '#82602c', belly: '#f4e8d0', eye: '#ffb640', pattern: 'spots', tufts: true, size: 1.55, shortTail: true, ruff: true, crown: true, cape: '#6b2d8b', label: 'reina lince' },
-    bandit:    { kind: 'cat', fur: '#6f7480', fur2: '#2a2c36', belly: '#d9dbe2', eye: '#f4cf52', pattern: 'mask', size: 0.94, sack: true, label: 'gato ratero' },
+    bandit:    { kind: 'cat', fur: '#6f7480', fur2: '#2a2c36', belly: '#d9dbe2', eye: '#f4cf52', pattern: 'mask', size: 0.94, label: 'gato ratero' },
     /* roedores */
     mouse:     { kind: 'rodent', fur: '#a9a9b3', fur2: '#7c7c88', belly: '#e2e2e8', eye: '#1c1c22', ear: 'round', earSize: 1.25, tail: 'thin', size: 0.86, teeth: true, label: 'ratón' },
     rat:       { kind: 'rodent', fur: '#75645a', fur2: '#4c3e37', belly: '#ae9e90', eye: '#d23a3a', ear: 'round', earSize: 1, tail: 'thin', size: 1.05, teeth: true, label: 'rata' },
@@ -32,8 +32,11 @@
     marmot:    { kind: 'rodent', fur: '#ad8a5b', fur2: '#75573a', belly: '#dec7a2', eye: '#1c1c22', ear: 'small', tail: 'stub', size: 1.16, chubby: true, teeth: true, label: 'marmota' },
     hamster:   { kind: 'rodent', fur: '#ebb372', fur2: '#c08543', belly: '#fff3e0', eye: '#1c1c22', ear: 'round', earSize: 0.85, tail: 'none', size: 0.96, cheeks: true, label: 'hámster' },
     jerboa:    { kind: 'rodent', fur: '#dcb978', fur2: '#a3844a', belly: '#fff7e4', eye: '#1c1c22', ear: 'tall', tail: 'tuft', size: 0.9, label: 'jerbo' },
-    chipmunk:  { kind: 'rodent', fur: '#c98a4a', fur2: '#4a2f1c', belly: '#f8ead2', eye: '#1c1c22', ear: 'round', earSize: 0.8, tail: 'bushy', size: 0.9, stripes: true, sack: true, teeth: true, label: 'ardilla listada' },
+    chipmunk:  { kind: 'rodent', fur: '#c98a4a', fur2: '#4a2f1c', belly: '#f8ead2', eye: '#1c1c22', ear: 'round', earSize: 0.8, tail: 'bushy', size: 0.9, stripes: true, teeth: true, label: 'ardilla listada' },
   };
+  // Los ladrones tienen una variante "con botín": el mismo animal con un saco a cuestas.
+  SPECIES.bandit_loot = { ...SPECIES.bandit, sack: true };
+  SPECIES.chipmunk_loot = { ...SPECIES.chipmunk, sack: true };
 
   const PINK = hex('#f0a9b4'), PINK2 = hex('#d68c99'), DARK = hex('#17131c'), WHITE = hex('#ffffff'), GOLD = hex('#f1c74c');
   const FLESH = '#d9aa9f', TAIL = hex('#cf9590'), TAIL2 = hex('#b47d7c');

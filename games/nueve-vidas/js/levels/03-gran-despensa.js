@@ -13,6 +13,8 @@ TD.registerLevel({
     'juntan frente a la bóveda. Y esta vez no mandan exploradores: viene Colagris, el Rey ' +
     'Rata, convocando ratones a su paso. Si él cruza, se acaban todas tus vidas. El Lince ya ' +
     'está disponible: su dardo atraviesa cualquier pellejo.',
+  outro:
+    'Colagris cayó frente a la bóveda. Antes de apagarse dijo algo que no le contaste a nadie: «Yo también tuve garras». Esa noche soñaste con un túnel tibio y con un hambre que no era tuya.',
   startCans: 320,
   countdown: 25,
   towers: ['vigia', 'zarpas', 'maullador', 'lanzasardinas', 'lince'],

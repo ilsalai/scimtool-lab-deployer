@@ -15,6 +15,10 @@
     baseShort: 'Despensa',
     currency: 'latas',
     currencyIcon: 'can',
+    exitPhrase: 'vuelva a la madriguera',
+    escapedPhrase: 'La Colonia cena esta noche.',
+    echoKill: (me, echo) => `${me} derribó al eco de ${echo}, que una vez fue de la Colonia... y antes, quién sabe. Algo le dolió en el pecho sin saber por qué.`,
+    echoLeak: (echo) => `El eco de ${echo} cruzó sin mirarte. Eras tú, con otros bigotes, y no te reconociste.`,
     unitsWord: 'Gatos',
     unitWord: 'gato',
     livesWord: 'vida',
@@ -59,8 +63,9 @@
       'desaparecieron y dejaron sus Despensas llenas de latas que no se pudren. Los roedores las quieren. ' +
       'Tienes nueve vidas para impedirlo. Gástalas bien.',
     warWon: (name) =>
-      `${name} defendió todas las Despensas. El Clan del Muro gana la guerra... por ahora. En esta tierra nada ` +
-      'termina: puedes seguir patrullando tus Despensas o dejar que la Rueda gire y ver el mundo con otros ojos.',
+      `${name} defendió todas las Despensas. El Clan del Muro gana la guerra... por ahora. Pero el viento trae un ` +
+      'olor nuevo desde las puertas de los Bípedos, grande y paciente. En esta tierra nada termina: puedes seguir ' +
+      'patrullando tus Despensas o dejar que la Rueda gire y ver el mundo con otros ojos.',
   });
 
   TD.registerFaction({
@@ -73,6 +78,10 @@
     baseShort: 'Granero',
     currency: 'semillas',
     currencyIcon: 'seed',
+    exitPhrase: 'salte el muro',
+    escapedPhrase: 'El Clan cena esta noche.',
+    echoKill: (me, echo) => `${me} derribó al eco de ${echo}, que una vez fue del Clan... y antes, quién sabe. Algo le dolió en el pecho sin saber por qué.`,
+    echoLeak: (echo) => `El eco de ${echo} cruzó sin mirarte. Eras tú, con otras garras, y no te reconociste.`,
     unitsWord: 'Roedores',
     unitWord: 'roedor',
     livesWord: 'escape',
@@ -113,7 +122,8 @@
       `Eres ${name}, ${species.article} ${species.label} de la Colonia. El Granero guarda el grano de mil ` +
       'inviernos y los gatos vienen a quitárselo. No tienes nueve vidas, pero tienes nueve milagros. No los desperdicies.',
     warWon: (name) =>
-      `${name} defendió el Granero hasta el final. La Colonia gana la guerra... por ahora. Puedes seguir ` +
-      'vigilando tus túneles o dejar que la Rueda gire y descubrir qué se siente tener garras.',
+      `${name} defendió el Granero hasta el final. La Colonia gana la guerra... por ahora. Pero bajo la tierra ` +
+      'se oyen pasos pesados que no son de gato, yendo y viniendo frente a las puertas de los Bípedos. Puedes ' +
+      'seguir vigilando tus túneles o dejar que la Rueda gire y descubrir qué se siente tener garras.',
   });
 })();

@@ -13,6 +13,8 @@ TD.registerLevel({
     'los roedores hacia la Despensa de la estación de servicio. El camino es largo y da tres ' +
     'vueltas: un gato bien puesto entre dos carriles trabaja el doble. Cuidado con los topos: ' +
     'bajo tierra solo Zarpas los huele.',
+  outro:
+    'En la estación, bajo el polvo, hay un cuenco de metal con un nombre grabado que no es de gato. Demasiado grande para nosotros. Lo dejaste donde estaba.',
   startCans: 230,
   lives: 9,
   countdown: 25,

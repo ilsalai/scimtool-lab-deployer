@@ -12,6 +12,8 @@ TD.registerLevel({
     'terraplén, la Colonia excavó el Granero: grano para mil inviernos. Los gatos del Clan del ' +
     'Muro bajan por el sendero en busca de algo que cazar. Coloca a tus honderas en las curvas ' +
     'y que ninguna garra llegue a la puerta.',
+  outro:
+    'Bajo las vías muertas la Colonia guarda una rueda de alambre que los Bípedos dejaron dentro de una jaula abierta. Los viejos dicen que ahí aprendimos a correr sin llegar a ninguna parte, y que por eso llamamos Rueda a lo que nos devuelve.',
   startCans: 160,
   countdown: 25,
   towers: ['hondera', 'puas', 'silbadora'],

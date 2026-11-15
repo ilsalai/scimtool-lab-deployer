@@ -80,7 +80,7 @@
       mood: { ambient: [132, 122, 176], sun: [255, 170, 120, 0.4], shadow: { c: -1.5, d: -0.4, a: 0.36 }, shafts: { rgb: '255,170,120', a: 0.1, n: 3 }, particles: 'fireflies', haze: '255,150,120', vignette: 0.5, unitGlow: true, lamps: true },
     },
     patio: {
-      ground: 'stone', floor: 'asphalt', wob: 1.0, tree: 'noche', block: 'tree', pole: 'lamp',
+      ground: 'stone', floor: 'asphalt', wob: 1.0, tree: 'noche', block: 'crate', pole: 'lamp',
       scenery: [['crate', 6], ['lamp', 2], ['rubble', 2], ['car', 1]],
       grass: ['#404a55', '#4d5965', '#5c6976', '#70808c'],
       path: ['#23262d', '#2f333c', '#3c414b', '#4d535e'], wall: '#868c95', curb: true, lane: '#b9b3a0',
@@ -89,7 +89,7 @@
       mood: { ambient: [92, 104, 150], sun: [150, 180, 255, 0.25], shadow: { c: -0.7, d: -0.34, a: 0.34 }, shafts: null, particles: 'rain', haze: '110,130,190', vignette: 0.55, unitGlow: true, lamps: true },
     },
     silo: {
-      ground: 'wheat', floor: 'planks', wob: 0.5, tree: 'dorado', block: 'tree', pole: 'lamp',
+      ground: 'wheat', floor: 'planks', wob: 0.5, tree: 'dorado', block: 'sacks', pole: 'lamp',
       scenery: [['sacks', 7], ['crate', 3]],
       grass: ['#8a6a28', '#a88434', '#c29c42', '#dab95c'],
       path: ['#5a4129', '#735537', '#8c6b47', '#a58259'], wall: '#33230f',

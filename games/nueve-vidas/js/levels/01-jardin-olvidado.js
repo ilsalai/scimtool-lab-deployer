@@ -12,6 +12,8 @@ TD.registerLevel({
     'sobre todo, sus Despensas: montañas de latas que no se pudren. Esta era el huerto de ' +
     'una casa; hoy es la última Despensa del Clan del Muro. Los exploradores roedores ya ' +
     'encontraron el sendero. Coloca a tus gatos junto al camino y que ningún bigote cruce.',
+  outro:
+    'Entre las raíces del jardín encontraste una puerta de los Bípedos. Abierta, como todas. Los viejos del Clan la llaman la Noche de las Puertas Abiertas: se fueron todos a la vez y no cerraron ninguna.',
   startCans: 160,
   lives: 9,
   countdown: 25,

@@ -154,7 +154,7 @@
         const x = c * ART + ART / 2, y = r * ART + ART / 2;
         const sd = this.seed + c * 31 + r * 57;
         const jx = Math.round((hash2(c, r, this.seed) - 0.5) * 6), jy = Math.round((hash2(r, c, this.seed + 1) - 0.5) * 4);
-        if (ch === 'T') add(this.sceneryProp(th.block === 'pipe' ? 'pipe' : th.block === 'chimney' ? 'chimney' : 'tree', sd, x + (th.block === 'tree' ? jx : 0), y + 11 + (th.block === 'tree' ? jy : 1)));
+        if (ch === 'T') add(this.sceneryProp(th.block || 'tree', sd, x + (th.block === 'tree' ? jx : 0), y + 11 + (th.block === 'tree' ? jy : 1)));
         else if (ch === 'R') add(this.sceneryProp('rubble', sd, x + jx, y + 9));
         else if (ch === 'C') add(this.sceneryProp('car', sd, x, y + 10));
         else if (ch === 'L') add(this.sceneryProp(th.pole === 'antenna' ? 'antenna' : 'lamp', sd, x, y + 10));
@@ -419,7 +419,9 @@
         return { spr: SPR.get(`mound|${f}`, () => SPR.mound(f)), flip: false, mound: true };
       }
       const frame = Math.floor((e.walked != null ? e.walked : e.dist) / (TILE * 0.2)) % 4;
-      return { spr: SPR.walkSprite(e.look || e.def.look, frame), flip: face < 0 };
+      let look = e.look || e.def.look;
+      if (e.carried > 0 && SPR.SPECIES[look + '_loot']) look += '_loot';
+      return { spr: SPR.walkSprite(look, frame), flip: face < 0 };
     }
 
     drawEnemy(ctx, e, t) {
@@ -747,7 +749,7 @@
         const label = e.label || (e.def.boss ? e.def.name : null);
         if (!label || e.hidden) continue;
         const x = (e.x * S + ox) * K, y = (tops.get(e) - 6 + oy) * K;
-        ctx.font = font(4.6, 700);
+        ctx.font = font(5.4, 700);
         ctx.lineWidth = K * 1.1; ctx.strokeStyle = 'rgba(15,10,25,0.85)'; ctx.strokeText(label, x, y);
         ctx.fillStyle = e.echo ? '#cfe6ff' : '#ffd772'; ctx.fillText(label, x, y);
       }

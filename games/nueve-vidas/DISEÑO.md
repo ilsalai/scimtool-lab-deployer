@@ -1,31 +1,13 @@
 # Nueve Vidas · documento de diseño
 
+La historia está en [TRAMA.md](TRAMA.md). Este documento cubre las reglas, el contenido, el arte y
+lo que sigue.
+
 ## La idea en tres líneas
 
 Un tower defense donde el jugador no es un general sino **un animal con nueve oportunidades**.
-Gatos y roedores se disputan las Despensas que dejaron los humanos al desaparecer. Perder no es
-el fin: es despertar del otro lado de la guerra.
-
-## El mundo
-
-**Hace diez mil estaciones los Bípedos desaparecieron.** Nadie sabe por qué y a nadie le importa
-demasiado. Dejaron tres cosas que lo cambiaron todo:
-
-- **Las ruinas**: muros, autopistas de alquitrán, templos de pasillos interminables (supermercados),
-  alcantarillas de ladrillo. Los gatos, que ya vivían entre ellas, las heredaron.
-- **Las Despensas**: montañas de latas que no se pudren. Comida eterna y metal. La cosa más valiosa
-  del mundo. Los gatos las custodian; los roedores las codician.
-- **El Granero**: lo que los roedores construyeron bajo tierra con el grano silvestre que creció en
-  los campos abandonados. Los gatos lo quieren por la misma razón que los roedores quieren las
-  latas: comida que no hay que cazar.
-
-Dos civilizaciones nacieron de esa herencia:
-
-- **El Clan del Muro** (gatos). Pocos, letales, territoriales. Viven en las ruinas y custodian las
-  Despensas. Moneda: **latas**. Creen que tienen nueve vidas, y en esta tierra es verdad.
-- **La Colonia** (roedores). Muchísimos, rápidos, ingeniosos. Viven bajo tierra, en los campos y
-  en las alcantarillas. Moneda: **semillas**. No tienen nueve vidas, pero un roedor escapa por
-  milagro nueve veces... hasta la novena.
+Gatos y roedores se disputan lo que dejaron los humanos al desaparecer. Perder no es el fin: es
+despertar del otro lado de la guerra.
 
 ## La Rueda (mecánica central)
 
@@ -34,45 +16,36 @@ Dos civilizaciones nacieron de esa herencia:
 | Oportunidades | 9 vidas | 9 escapes milagrosos |
 | Se gasta una cuando | un roedor llega a la Despensa | un gato llega al Granero |
 | Al perder la novena | la Colonia gana la guerra; despiertas como roedor | el Clan gana la guerra; despiertas como gato |
-| Las oportunidades se recuperan | nunca; solo un personaje nuevo nace con nueve | igual |
+| Se recuperan | nunca; solo un personaje nuevo nace con nueve | igual |
 
-- Cada oportunidad perdida tiene **su relato** (un texto por vida: la primera, la segunda... la
-  octava) y queda en la **Crónica**, el diario de todas las encarnaciones.
-- La novena tiene una **pantalla propia**: *La Rueda gira*. Luego el **nacimiento** del nuevo
-  personaje, con nombre, especie y retrato generados.
-- El **progreso de cada bando se conserva**: los niveles ganados por el Clan siguen ganados cuando
-  vuelves a ser gato tres encarnaciones después. Un personaje nuevo retoma la guerra, no la
-  reinicia.
-- Ganar todos los niveles de un bando ofrece una elección: seguir patrullando con tu personaje o
-  **dejar que la Rueda gire** voluntariamente para ver el mundo con otros ojos.
-- Los jefes (Rey Rata Colagris, Reina Lince Ojos de Ámbar) cuestan **las nueve**: si cruzan, la
-  Rueda gira en el acto.
-
-Por qué funciona: perder deja de ser un castigo y pasa a ser **la forma de conocer la otra mitad
-del juego**. Y las nueve vidas, que en cualquier otro juego serían un contador, aquí son el hilo
-de la historia.
+- Cada oportunidad perdida tiene **su relato** y queda en la **Crónica**.
+- La novena tiene pantalla propia; luego nace el personaje nuevo, con nombre, especie y retrato.
+- El **progreso de cada bando se conserva** entre encarnaciones.
+- **Ecos**: si ya viviste en el bando que ahora ataca, tu vida anterior aparece una vez por nivel
+  como enemigo con nombre. Es más dura que el resto y pesa más cuanto más avanzado el nivel.
+- Ganar todos los niveles de un bando permite seguir o **dejar que la Rueda gire** por elección.
+  La opción queda disponible en la lista de niveles.
+- Los jefes cuestan **las nueve**.
 
 ## Economía y oleadas
 
-- Cada baja deja latas/semillas. Completar el envío de una oleada paga un bono (12 + 4 × número de
-  oleada). Adelantar la siguiente antes de que termine la cuenta regresiva de 25 s paga un bono
-  igual a los segundos que faltaban.
-- Vender devuelve el 70 % de lo invertido.
-- Las unidades se mejoran dos veces; el precio de la mejora está en los datos de cada nivel de la
-  unidad.
+- Cada baja deja latas o semillas. Completar el envío de una oleada paga un bono (12 + 4 × número
+  de oleada). Adelantar la siguiente paga los segundos que faltaban de la cuenta regresiva.
+- Vender devuelve el 70 %. Las unidades se mejoran dos veces.
+- **Tres estrellas** exigen no perder oportunidades ni botín. Dos, perder hasta dos oportunidades.
 
 ## Unidades (espejo entre bandos)
 
 | Rol | Gato | Roedor | Qué hace |
 |---|---|---|---|
-| Tirador | **Vigía** (atigrado con honda) | **Hondera** (ardilla con bellotas) | barato, fiable, 50 |
-| Cuerpo a cuerpo | **Zarpas** (negro de patas blancas) | **Puercoespín** | golpe brutal, poco alcance, rompe armaduras, detecta ocultos, 80 |
-| Control | **Maullador** (gris) | **Silbadora** (marmota) | onda que frena en área, 70 |
-| Área | **Lanzasardinas** (calicó con catapulta) | **Bombardero** (hámster con nueces) | daño en área contra enjambres, 110 |
-| Francotirador | **Lince** | **Jerbo** (cerbatana de espinas) | alcance enorme, ignora armadura, lento, 160 |
+| Tirador | **Vigía** | **Hondera** (ardilla) | barato, fiable, 50 |
+| Cuerpo a cuerpo | **Zarpas** | **Puercoespín** | golpe brutal, poco alcance, detecta ocultos, 80 |
+| Control | **Maullador** | **Silbadora** (marmota) | onda que frena en área, 70 |
+| Área | **Lanzasardinas** | **Bombardero** (hámster) | daño en área contra enjambres, 110 |
+| Francotirador | **Lince** | **Jerbo** | alcance enorme, ignora armadura, lento, 160 |
 
-Cada unidad colocada recibe un **nombre propio** del bando (Bigotes, Trufa, Pizca, Migaja...) y
-lleva su propia cuenta de bajas.
+Cada unidad colocada recibe un nombre propio y lleva su cuenta de bajas. Prioridades de disparo:
+más adelantado, más atrasado, más fuerte, más cercano y **ladrones primero**.
 
 ## Enemigos (espejo entre bandos)
 
@@ -82,53 +55,75 @@ lleva su propia cuenta de bajas.
 | Infantería | Rata | Cazador | 75 de vida |
 | Veloz | Ardilla | Siamés | 2,6 casillas/s |
 | Oculto | Topo (bajo tierra) | Sombra (entre sombras) | invisible por ratos; solo el cuerpo a cuerpo lo ve |
-| Tanque | Capibara | Peludo (pelo largo) | 420 de vida, armadura 5, cuesta 2 oportunidades |
+| Tanque | Capibara | Peludo | 420 de vida, armadura 5, cuesta 2 oportunidades |
+| Ladrón | Listada | Ratero | 400 de vida, entra a 3 casillas/s, roba 30 y vuelve a 1,9; no gasta oportunidades |
+| Eco | Eco de tu vida roedora | Eco de tu vida gatuna | 320 de vida base, escala con el nivel, cuesta 1 |
 | Jefe | Rey Rata Colagris | Reina Lince Ojos de Ámbar | 2200 de vida, invoca refuerzos, cuesta las nueve |
 
-## Niveles actuales
+### Cómo funciona el ladrón
+
+- Entra rápido y aguanta: casi siempre llega. No pasa por la regla de vidas.
+- En la base roba 30 (o lo que haya) y da media vuelta. Vuelve más lento, con el saco a cuestas.
+- Si muere antes de salir del mapa, lo robado vuelve. Si sale, se pierde.
+- Para las unidades, "más adelantado" significa "al que menos le falta para hacer daño": un ladrón
+  que vuelve es urgente cerca de la entrada y poco urgente cerca de la base. La prioridad
+  "ladrones primero" lo fuerza.
+- Decisiones nuevas: defender la entrada, que antes nadie cubría; qué unidades cambian de
+  prioridad; gastar antes de una oleada de ladrones o guardar reserva.
+
+## Niveles
 
 Campaña de los gatos (*La guerra de las Despensas*):
 
-1. **El Jardín Olvidado** · huerto de una casa, camino en S de 33 casillas, 8 oleadas. Enseña a cubrir curvas, luego ardillas (control) y una capibara (cuerpo a cuerpo).
-2. **La Autopista Rota** · alquitrán agrietado, tres carriles con vueltas (49 casillas), 10 oleadas. Introduce topos y el Lanzasardinas.
-3. **La Gran Despensa** · supermercado con dos pasillos que se juntan frente a la bóveda, 12 oleadas. Introduce el Lince y termina con el Rey Rata.
+1. **El Jardín Olvidado** · sendero en S de 33 casillas, 8 oleadas, de mañana.
+2. **La Autopista Rota** · tres carriles con vueltas, 49 casillas, 10 oleadas, atardecer. Topos y Lanzasardinas.
+3. **La Gran Despensa** · dos pasillos que se juntan, 12 oleadas, penumbra. Lince y el Rey Rata.
+4. **El Patio de Carga** · una vuelta entera alrededor de una isla, 39 casillas, 12 oleadas, noche con lluvia. Listadas.
 
-Campaña de los roedores (*La guerra del Granero*), espejo con mapas propios:
+Campaña de los roedores (*La guerra del Granero*):
 
-1. **El Terraplén** · trigales junto a las vías muertas, 44 casillas, 8 oleadas.
-2. **Las Alcantarillas** · túneles de ladrillo y canales, 40 casillas, 10 oleadas. Introduce Sombras y el Bombardero.
-3. **El Tejado del Templo** · dos aleros hacia la claraboya, 12 oleadas. Introduce el Jerbo y termina con la Reina Lince.
+1. **El Terraplén** · trigal, 44 casillas, 8 oleadas, mediodía.
+2. **Las Alcantarillas** · túneles y canales, 40 casillas, 10 oleadas, a oscuras. Sombras y Bombardero.
+3. **El Tejado del Templo** · dos aleros, 12 oleadas, anochecer. Jerbo y la Reina Lince.
+4. **El Silo** · espiral con el Granero en el centro, 36 casillas, 12 oleadas, interior cálido. Rateros.
+
+## Dirección de arte: HD-2D
+
+- **Pixel art de alta densidad**: 32 píxeles por casilla, el doble que un juego de 16 bits. Las
+  unidades miden unos 22×28 píxeles; un jefe, más de 40.
+- **Todo procedural**: cada especie es una ficha de colores y rasgos; el motor la dibuja sentada de
+  frente y caminando de perfil, con rampas de color que viran a violeta en la sombra y a amarillo
+  en la luz, sombreado por volumen y contorno del color del propio pelaje.
+- **Terreno pintado píxel a píxel**: bordes ondulados, caminos hundidos con pared y sombra,
+  texturas por tema, y un margen decorativo fuera del tablero.
+- **Luz en alta resolución encima del pixel art**: sombras proyectadas con la silueta de cada
+  sprite, mapa de luz por nivel, faroles y lucecitas de las unidades en los niveles oscuros,
+  resplandores, rayos de sol, partículas, desenfoque del margen y viñeta.
+- **Cada capítulo tiene su hora**, y el Acto II es más oscuro que el I.
+- La interfaz es nítida y moderna, con los mismos sprites como retratos.
 
 ## Balance (según el simulador)
 
-`node tools/simulate.js` juega cada nivel con un bot heurístico. Estado actual:
+`node tools/simulate.js` juega cada nivel con un bot heurístico:
 
-- *Equilibrada* (mezcla de roles, mejoras, espera la cuenta regresiva): gana los seis niveles con 8 a 9 oportunidades.
-- *Agresiva* (igual pero adelanta todas las oleadas): gana los niveles 1 y 2 de cada bando y pierde los terceros, como corresponde.
-- *Solo básicas* (solo tiradores): gana los niveles 1 y 2 con pérdidas y pierde los terceros contra los tanques.
-- *Perezosa* (tres unidades y nada más): pierde todo.
+- *Equilibrada* (mezcla de roles, mejoras, espera la cuenta regresiva): gana los ocho niveles con 8 a 9 oportunidades. En los capítulos 4 le roban unas 480 y recupera casi todo.
+- *Agresiva* (adelanta todas las oleadas): gana los capítulos 1 y 2 y cae en los 3 y 4.
+- *Solo básicas*: gana los capítulos 1 y 2 con pérdidas y sufre en adelante.
+- *Perezosa* (tres unidades): pierde todo.
 
-Como las oportunidades se arrastran entre niveles, la intención es que un jugador atento termine
-una campaña con 4 a 9 oportunidades y que las nueve se agoten solo si insiste en un nivel que le
-queda grande... y entonces la Rueda hace su trabajo.
+El bot no sabe defender la entrada ni cambiar prioridades, así que un humano que entienda a los
+ladrones lo tendrá algo más fácil. Falta calibrar con personas.
 
-## Ideas para seguir (en orden de lo que más aporta)
+## Lo que sigue
 
-1. **Más capítulos con mecánicas nuevas**, no solo más oleadas: el Puerto (enemigos acuáticos:
-   nutrias y coipos que esquivan por el agua; gatos pescadores que los vigilan), la Noche (visión
-   reducida; el Maullador alumbra), la Tormenta (la lluvia frena a los gatos y acelera a los
-   roedores).
-2. **Unidades aéreas**: ardillas voladoras y, del otro lado, gatos que saltan entre tejados. Solo
-   las alcanzan los tiradores y los francotiradores.
-3. **Ladrones**: ardillas listadas que no quitan vidas sino que roban latas de la Despensa y
-   vuelven por donde vinieron. Matarlas recupera lo robado.
-4. **Rasgos del personaje**: cada encarnación nace con un rasgo (ojo de lince: +alcance;
-   cola corta: unidades más baratas) que hace distinta cada vuelta de la Rueda.
-5. **La Crónica como cómic**: ilustrar cada entrada con el retrato del personaje y el enemigo
-   que lo mató.
-6. **Modo asedio sin fin** por bando, con marcador local, para quien ya ganó las dos guerras.
-7. **Campaña espejo en el espejo**: el jefe que te mató reaparece como aliado cuando cambias de
-   bando ("la Reina te recuerda").
-8. Sonido: un tema por bando con WebAudio (ahora solo hay efectos) y un maullido/silbido distinto
-   por unidad.
-9. Guardado en la nube o exportar/importar la Crónica como archivo.
+En orden:
+
+1. **Capítulo 5 · El Invierno Largo**: mecánica de frío y hoguera. Ver TRAMA.md.
+2. **Capítulo 6 · La marcha al Molino**: los dos bandos en el mismo mapa, desde lados opuestos.
+3. **Los Fieles**: tercer bando solo como enemigo, y el nivel final con unidades de los dos bandos.
+4. **Rasgos por encarnación**: cada personaje nace con un rasgo pequeño (más alcance, unidades más
+   baratas) para que cada vuelta de la Rueda se sienta distinta.
+5. **Animación**: cuadros de ataque propios por unidad y vista de frente y de espaldas para los
+   enemigos que suben o bajan.
+6. **Música** por bando con WebAudio; hoy solo hay efectos.
+7. **Unidades aéreas** y **modo sin fin**, cuando las dos campañas estén completas.
