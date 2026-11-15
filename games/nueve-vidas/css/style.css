@@ -46,7 +46,9 @@ p { margin: 0 0 10px; }
 .stat #hud-cans, .stat #hud-wave { color: var(--text); font-weight: 700; font-size: 16px; }
 .ico svg { width: 18px; height: 18px; fill: var(--gold); display: block; }
 .char-chip { display: flex; align-items: center; gap: 8px; }
-.char-chip canvas { width: 44px; height: 44px; border-radius: 50%; background: var(--panel-2); border: 2px solid var(--accent); }
+.char-chip canvas { width: 48px; height: 48px; border-radius: 50%; background: var(--panel-2); border: 2px solid var(--accent); }
+/* El pixel art no se suaviza al ampliarlo. */
+canvas.avatar, #hud-avatar, #tp-avatar { image-rendering: crisp-edges; image-rendering: pixelated; }
 .chip-name { font-weight: 700; font-size: 14px; }
 .lives { display: flex; gap: 2px; }
 .lives .life svg { width: 15px; height: 15px; fill: var(--accent); display: block; filter: drop-shadow(0 1px 0 rgba(0,0,0,0.5)); }
@@ -70,6 +72,8 @@ p { margin: 0 0 10px; }
 .btn.small { padding: 6px 10px; font-size: 13px; }
 .btn.big { padding: 12px 22px; font-size: 16px; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 6px; }
+.btn-row.quality { align-items: center; gap: 6px; margin-top: 10px; }
+.btn-row.quality .hint { margin: 0 6px 0 0; }
 
 /* ----------------------------------------------------------------- stage */
 #stage { flex: 1; display: flex; min-height: 0; }
@@ -91,7 +95,7 @@ p { margin: 0 0 10px; }
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px 8px;
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; text-align: center;
 }
-.card canvas { width: 60px; height: 60px; }
+.card canvas { width: 76px; height: 72px; }
 .card-name { font-weight: 700; font-size: 13px; }
 .card-role { font-size: 11px; color: var(--muted); }
 .card-cost { display: flex; align-items: center; gap: 4px; justify-content: center; font-weight: 700; color: var(--gold); font-size: 13px; }
@@ -103,7 +107,7 @@ p { margin: 0 0 10px; }
 
 /* panel de unidad */
 .tp-head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
-.tp-head canvas { width: 56px; height: 56px; background: var(--panel-2); border-radius: 10px; }
+.tp-head canvas { width: 64px; height: 64px; background: var(--panel-2); border-radius: 10px; }
 .tp-name { font-weight: 800; font-size: 17px; }
 .tp-type { font-size: 12px; color: var(--muted); }
 .tp-stats { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; font-size: 13px; }
@@ -118,7 +122,7 @@ p { margin: 0 0 10px; }
 /* panel de oleada */
 .preview { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .pv { display: flex; align-items: center; gap: 2px; background: var(--panel-2); border-radius: 8px; padding: 2px 6px 2px 2px; font-size: 13px; }
-.pv canvas { width: 40px; height: 40px; }
+.pv canvas { width: 48px; height: 36px; }
 .wave-text { font-size: 13px; color: var(--muted); font-style: italic; min-height: 18px; }
 .countdown { height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 3px; overflow: hidden; margin: 6px 0 10px; }
 #countdown-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.2s linear; }
@@ -153,12 +157,12 @@ p { margin: 0 0 10px; }
 .tagline { color: var(--muted); margin: 8px 0 0; font-size: 15px; }
 .menu-head { margin-bottom: 18px; }
 .title-row { display: flex; align-items: center; gap: 16px; }
-.title-row canvas { width: 110px; height: 110px; flex: none; }
+.title-row canvas { width: 112px; height: 112px; flex: none; }
 .title-row > div { flex: 1; }
 
 .char-card { display: flex; align-items: center; gap: 14px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
 .char-card canvas { width: 80px; height: 80px; border-radius: 50%; background: var(--panel); border: 2px solid var(--accent); flex: none; }
-.char-card.big canvas { width: 150px; height: 150px; }
+.char-card.big canvas { width: 152px; height: 152px; }
 .char-card.faded canvas { filter: grayscale(0.8) brightness(0.7); border-color: var(--muted); }
 .char-name { font-weight: 800; font-size: 20px; }
 .char-sub { color: var(--muted); font-size: 13px; }
@@ -186,7 +190,7 @@ p { margin: 0 0 10px; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .unit-chip { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); background: var(--panel-2); border-radius: 10px; padding: 6px 8px; min-width: 70px; }
-.unit-chip canvas { width: 52px; height: 52px; }
+.unit-chip canvas { width: 76px; height: 72px; }
 
 .stars-big { font-size: 40px; color: var(--gold); letter-spacing: 0.1em; margin: 6px 0 10px; }
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0; }

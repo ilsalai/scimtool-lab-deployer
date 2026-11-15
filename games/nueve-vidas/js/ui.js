@@ -161,6 +161,11 @@
           break;
         }
         case 'war': this.showWar(); break;
+        case 'quality':
+          TD.Renderer.saveQuality(data.q);
+          if (this.renderer) this.renderer.setQuality(data.q);
+          this.showPause();
+          break;
         case 'switch-dev': {
           const f = this.campaign.faction.enemy;
           this.campaign.data.faction = f;
@@ -199,9 +204,8 @@
 
     paintAll(root = document) {
       for (const cv of root.querySelectorAll('canvas.avatar[data-look]')) {
-        const scale = Number(cv.dataset.scale) || 1;
-        if (cv.dataset.pose === 'walk') TD.art.paintWalker(cv, cv.dataset.look, { scale });
-        else TD.art.paintPortrait(cv, cv.dataset.look, { base: cv.dataset.base || null, scale });
+        if (cv.dataset.pose === 'walk') TD.art.paintWalker(cv, cv.dataset.look);
+        else TD.art.paintPortrait(cv, cv.dataset.look, { base: cv.dataset.base || null, bust: cv.dataset.bust === '1' });
       }
     }
 
@@ -215,7 +219,7 @@
     characterCard(big = false) {
       const ch = this.campaign.character, f = this.campaign.faction, lives = this.campaign.lives;
       return `<div class="char-card ${big ? 'big' : ''}">
-        <canvas class="avatar" width="${big ? 150 : 80}" height="${big ? 150 : 80}" data-look="${ch.look}" data-scale="1.05"></canvas>
+        <canvas class="avatar" width="${big ? 152 : 80}" height="${big ? 152 : 80}" data-look="${ch.look}"></canvas>
         <div class="char-text">
           <div class="char-name">${esc(ch.name)}</div>
           <div class="char-sub">${esc(ch.article)} ${esc(ch.label)} · ${esc(f.clan)}</div>
@@ -247,9 +251,9 @@
       this.setScreen('menu', `
         <div class="menu-head">
           <div class="title-row">
-            <canvas class="avatar" width="110" height="110" data-look="tabby" data-base="post"></canvas>
+            <canvas class="avatar" width="112" height="112" data-look="tabby"></canvas>
             <div><h1 class="title">NUEVE VIDAS</h1><p class="tagline">Gatos contra roedores en una tierra que evolucionó sin humanos</p></div>
-            <canvas class="avatar" width="110" height="110" data-look="squirrel" data-base="stump"></canvas>
+            <canvas class="avatar" width="112" height="112" data-look="squirrel"></canvas>
           </div>
         </div>
         ${body}
@@ -297,10 +301,10 @@
       if (c.exists && c.lives <= 0) return this.showWheel();
       this.setFactionClass(lv.faction);
       const units = (lv.towers || TD.towerOrder.filter((id) => TD.towers[id].faction === lv.faction)).map((id) => TD.towers[id]).filter(Boolean)
-        .map((t) => `<div class="unit-chip" title="${esc(t.desc)}"><canvas class="avatar" width="52" height="52" data-look="${t.look}" data-base="${t.base}"></canvas><span>${esc(t.name)}</span></div>`).join('');
+        .map((t) => `<div class="unit-chip" title="${esc(t.desc)}"><canvas class="avatar" width="76" height="72" data-look="${t.look}"></canvas><span>${esc(t.name)}</span></div>`).join('');
       const ids = [...new Set(lv.waves.flatMap((w) => (Array.isArray(w) ? w : w.groups).map((g) => g.enemy)))];
       const enemies = ids.map((id) => TD.enemies[id]).filter(Boolean)
-        .map((e) => `<div class="unit-chip" title="${esc(e.desc)}"><canvas class="avatar" width="52" height="52" data-look="${e.look}" data-pose="walk"></canvas><span>${esc(e.name)}</span></div>`).join('');
+        .map((e) => `<div class="unit-chip" title="${esc(e.desc)}"><canvas class="avatar" width="76" height="72" data-look="${e.look}" data-pose="walk"></canvas><span>${esc(e.name)}</span></div>`).join('');
       this.setScreen('intro', `
         <div class="kicker">${esc(lv.subtitle || '')}</div>
         <h2>${esc(lv.name)}</h2>
@@ -314,8 +318,12 @@
     }
 
     showPause() {
+      const q = this.renderer ? this.renderer.quality : TD.Renderer.loadQuality();
+      const qb = (id, label) => `<button class="btn small ${q === id ? 'primary' : 'ghost'}" data-action="quality" data-q="${id}">${label}</button>`;
       this.setScreen('pause', `<h2>Pausa</h2>${this.characterCard()}
         <div class="btn-row"><button class="btn primary big" data-action="resume">Continuar</button><button class="btn" data-action="restart">Reiniciar nivel</button><button class="btn ghost" data-action="quit">Salir a los niveles</button></div>
+        <div class="btn-row quality"><span class="hint">Efectos visuales</span>${qb('alto', 'Altos')}${qb('medio', 'Medios')}${qb('bajo', 'Bajos')}</div>
+        <p class="hint">Altos: sombras, luz, rayos y desenfoque. Medios: sin desenfoque. Bajos: lo mínimo, para equipos modestos. Si el juego va lento, baja solo.</p>
         <p class="hint">${cap(this.campaign.faction.livesPlural)} perdidas no vuelven al reiniciar: son del personaje, no del nivel.</p>
         <p class="hint">Atajos: 1-5 elegir unidad · clic colocar · clic derecho o Esc cancelar · Espacio enviar oleada · P pausa · U mejorar · X vender · M sonido · + / − velocidad</p>`);
     }
@@ -353,7 +361,7 @@
       this.setScreen('wheel', `
         <h1 class="title small">LA RUEDA GIRA</h1>
         <div class="char-card big faded">
-          <canvas class="avatar" width="150" height="150" data-look="${ch.look}" data-scale="1.05"></canvas>
+          <canvas class="avatar" width="152" height="152" data-look="${ch.look}"></canvas>
           <div class="char-text"><div class="char-name">${esc(ch.name)}</div><div class="char-sub">${esc(ch.article)} ${esc(ch.label)} · ${esc(f.clan)}</div><div class="lives">${this.livesHTML(0, f)}</div></div>
         </div>
         <p class="lead">${esc(text)}</p>
@@ -368,7 +376,7 @@
         <div class="kicker">${info.first ? 'Tu primera vida' : `Encarnación ${this.campaign.data.incarnation}`}</div>
         <h2>${esc(ch.name)}</h2>
         <div class="char-card big">
-          <canvas class="avatar" width="160" height="160" data-look="${ch.look}" data-scale="1.05"></canvas>
+          <canvas class="avatar" width="160" height="160" data-look="${ch.look}"></canvas>
           <div class="char-text"><div class="char-sub">${esc(ch.article)} ${esc(ch.label)} · ${esc(f.clan)}</div><div class="lives">${this.livesHTML(9, f)}</div><div class="char-sub">9 ${f.livesPlural}</div></div>
         </div>
         <p class="lead">${esc(info.text)}</p>
@@ -434,7 +442,7 @@
       $('#hud-name').textContent = this.campaign.character.name;
       $('#stat-cans').title = cap(this.game.faction.currency);
       $('#cans-icon').innerHTML = ICONS[this.game.faction.currencyIcon] || ICONS.can;
-      TD.art.paintPortrait($('#hud-avatar'), this.campaign.character.look, { scale: 1.1 });
+      TD.art.paintPortrait($('#hud-avatar'), this.campaign.character.look, { bust: true });
       this.buildShop();
       this.refreshTowerPanel();
       this.refreshWavePanel();
@@ -506,7 +514,7 @@
         card.className = 'card';
         card.dataset.id = def.id;
         card.title = def.desc;
-        card.innerHTML = `<canvas class="avatar" width="60" height="60" data-look="${def.look}" data-base="${def.base}"></canvas>
+        card.innerHTML = `<canvas class="avatar" width="76" height="72" data-look="${def.look}"></canvas>
           <div class="card-body"><div class="card-name">${esc(def.name)}</div><div class="card-role">${ROLE_LABEL[def.role] || ''}</div>
           <div class="card-cost">${ICONS[f.currencyIcon] || ICONS.can}<span>${def.cost}</span></div></div><span class="hotkey">${def.hotkey || ''}</span>`;
         card.addEventListener('click', () => { TD.audio.unlock(); this.setPlacing(this.placing === def ? null : def); });
@@ -567,7 +575,7 @@
       const prev = $('#wave-preview');
       prev.innerHTML = Object.entries(counts).map(([id, n]) => {
         const e = TD.enemies[id];
-        return `<div class="pv" title="${esc(e.name)}: ${esc(e.desc)}"><canvas class="avatar" width="40" height="40" data-look="${e.look}" data-pose="walk"></canvas><b>×${n}</b></div>`;
+        return `<div class="pv" title="${esc(e.name)}: ${esc(e.desc)}"><canvas class="avatar" width="48" height="36" data-look="${e.look}" data-pose="walk"></canvas><b>×${n}</b></div>`;
       }).join('');
       this.paintAll(prev);
       $('#wave-text').textContent = show.text || '';
