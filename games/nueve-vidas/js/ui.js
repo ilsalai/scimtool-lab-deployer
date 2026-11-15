@@ -161,6 +161,7 @@
           break;
         }
         case 'war': this.showWar(); break;
+        case 'sound': this.refreshSoundButton(TD.audio.toggle()); this.showPause(); break;
         case 'quality':
           TD.Renderer.saveQuality(data.q);
           if (this.renderer) this.renderer.setQuality(data.q);
@@ -190,7 +191,8 @@
       // Con una pantalla abierta, el HUD y el tablero no reciben foco ni clics.
       $('#hud').inert = true; $('#stage').inert = true;
       this.paintAll(ov);
-      const first = ov.querySelector('button:not(:disabled)');
+      // El foco va a la acción principal; nunca a un botón destructivo.
+      const first = ov.querySelector('.btn.primary:not(:disabled)') || ov.querySelector('button:not(.danger):not(:disabled)');
       if (first) first.focus({ preventScroll: true });
       return ov.firstElementChild;
     }
@@ -323,7 +325,8 @@
       const qb = (id, label) => `<button class="btn small ${q === id ? 'primary' : 'ghost'}" data-action="quality" data-q="${id}">${label}</button>`;
       this.setScreen('pause', `<h2>Pausa</h2>${this.characterCard()}
         <div class="btn-row"><button class="btn primary big" data-action="resume">Continuar</button><button class="btn" data-action="restart">Reiniciar nivel</button><button class="btn ghost" data-action="quit">Salir a los niveles</button></div>
-        <div class="btn-row quality"><span class="hint">Efectos visuales</span>${qb('alto', 'Altos')}${qb('medio', 'Medios')}${qb('bajo', 'Bajos')}</div>
+        <div class="btn-row quality"><span class="hint">Efectos visuales</span>${qb('alto', 'Altos')}${qb('medio', 'Medios')}${qb('bajo', 'Bajos')}
+          <span class="hint" style="margin-left:14px">Sonido</span><button class="btn small ${TD.audio.enabled ? 'primary' : 'ghost'}" data-action="sound">${TD.audio.enabled ? 'Activado' : 'Silenciado'}</button></div>
         <p class="hint">Altos: sombras, luz, rayos y desenfoque. Medios: sin desenfoque. Bajos: lo mínimo, para equipos modestos. Si el juego va lento, baja solo.</p>
         <p class="hint">${cap(this.campaign.faction.livesPlural)} perdidas no vuelven al reiniciar: son del personaje, no del nivel.</p>
         <p class="hint">Atajos: 1-5 elegir unidad · clic colocar · clic derecho o Esc cancelar · Espacio enviar oleada · P pausa · U mejorar · X vender · M sonido · + / − velocidad</p>`);
